@@ -48,6 +48,8 @@ const char *tokenTypeToString(TokenType type) {
     return "TOKEN_IDENTIFIER";
   case TOKEN_STRING:
     return "TOKEN_STRING";
+  case TOKEN_TEMPL_STRING:
+    return "TOKEN_TEMPL_STRING";
   case TOKEN_NUMBER:
     return "TOKEN_NUMBER";
   case TOKEN_AND:
@@ -93,6 +95,7 @@ const char *tokenTypeToString(TokenType type) {
   }
   }
 }
+
 Scanner *initScanner(const char *source) {
   Scanner *scanner = (Scanner *)malloc(sizeof(Scanner));
 
@@ -265,6 +268,21 @@ static Token identifier(Scanner *scanner) {
   return makeToken(scanner, identifierType(scanner));
 }
 
+Token templateString(Scanner *scanner) {
+  while (peek(scanner) != '`' && !isAtEnd(scanner)) {
+    if (peek(scanner) == '\n')
+      scanner->line++;
+    advance(scanner);
+  }
+
+  if (isAtEnd(scanner)) {
+    return errorToken(scanner, "Unterminated string");
+  }
+
+  advance(scanner);
+  return makeToken(scanner, TOKEN_TEMPL_STRING);
+}
+
 Token string(Scanner *scanner) {
   while (peek(scanner) != '"' && !isAtEnd(scanner)) {
     if (peek(scanner) == '\n')
@@ -353,6 +371,8 @@ Token scanToken(Scanner *scanner) {
                      match(scanner, '=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
   case '"':
     return string(scanner);
+  case '`':
+    return templateString(scanner);
   }
 
   printf("Unexpected character \"%c\".\n", c);
