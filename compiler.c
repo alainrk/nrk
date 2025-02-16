@@ -18,8 +18,11 @@ void compile(VM *vm, const char *source) {
 
     // %.*s allows to print exactly token.length chars as we don't have a \0
     // here.
-    printf("%2d '%.*s'\n", token.type, token.length, token.start);
+    printf("%-20s \"%.*s\"\n", tokenTypeToString(token.type), token.length,
+           token.start);
 
+    if (token.type == TOKEN_ERROR)
+      break;
     if (token.type == TOKEN_EOF)
       break;
   }

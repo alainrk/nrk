@@ -65,5 +65,6 @@ typedef struct {
 Scanner *initScanner(const char *source);
 void freeScanner(Scanner *scanner);
 Token scanToken(Scanner *scanner);
+const char *tokenTypeToString(TokenType type);
 
 #endif

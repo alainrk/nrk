@@ -4,6 +4,95 @@
 #include <stdlib.h>
 #include <string.h>
 
+const char *tokenTypeToString(TokenType type) {
+  switch (type) {
+  case TOKEN_LEFT_PAREN:
+    return "TOKEN_LEFT_PAREN";
+  case TOKEN_RIGHT_PAREN:
+    return "TOKEN_RIGHT_PAREN";
+  case TOKEN_LEFT_BRACE:
+    return "TOKEN_LEFT_BRACE";
+  case TOKEN_RIGHT_BRACE:
+    return "TOKEN_RIGHT_BRACE";
+  case TOKEN_COMMA:
+    return "TOKEN_COMMA";
+  case TOKEN_DOT:
+    return "TOKEN_DOT";
+  case TOKEN_MINUS:
+    return "TOKEN_MINUS";
+  case TOKEN_PLUS:
+    return "TOKEN_PLUS";
+  case TOKEN_SEMICOLON:
+    return "TOKEN_SEMICOLON";
+  case TOKEN_SLASH:
+    return "TOKEN_SLASH";
+  case TOKEN_STAR:
+    return "TOKEN_STAR";
+  case TOKEN_BANG:
+    return "TOKEN_BANG";
+  case TOKEN_BANG_EQUAL:
+    return "TOKEN_BANG_EQUAL";
+  case TOKEN_EQUAL:
+    return "TOKEN_EQUAL";
+  case TOKEN_EQUAL_EQUAL:
+    return "TOKEN_EQUAL_EQUAL";
+  case TOKEN_GREATER:
+    return "TOKEN_GREATER";
+  case TOKEN_GREATER_EQUAL:
+    return "TOKEN_GREATER_EQUAL";
+  case TOKEN_LESS:
+    return "TOKEN_LESS";
+  case TOKEN_LESS_EQUAL:
+    return "TOKEN_LESS_EQUAL";
+  case TOKEN_IDENTIFIER:
+    return "TOKEN_IDENTIFIER";
+  case TOKEN_STRING:
+    return "TOKEN_STRING";
+  case TOKEN_NUMBER:
+    return "TOKEN_NUMBER";
+  case TOKEN_AND:
+    return "TOKEN_AND";
+  case TOKEN_CLASS:
+    return "TOKEN_CLASS";
+  case TOKEN_ELSE:
+    return "TOKEN_ELSE";
+  case TOKEN_FALSE:
+    return "TOKEN_FALSE";
+  case TOKEN_FOR:
+    return "TOKEN_FOR";
+  case TOKEN_FUN:
+    return "TOKEN_FUN";
+  case TOKEN_IF:
+    return "TOKEN_IF";
+  case TOKEN_NIL:
+    return "TOKEN_NIL";
+  case TOKEN_OR:
+    return "TOKEN_OR";
+  case TOKEN_PRINT:
+    return "TOKEN_PRINT";
+  case TOKEN_RETURN:
+    return "TOKEN_RETURN";
+  case TOKEN_SUPER:
+    return "TOKEN_SUPER";
+  case TOKEN_THIS:
+    return "TOKEN_THIS";
+  case TOKEN_TRUE:
+    return "TOKEN_TRUE";
+  case TOKEN_VAR:
+    return "TOKEN_VAR";
+  case TOKEN_WHILE:
+    return "TOKEN_WHILE";
+  case TOKEN_ERROR:
+    return "TOKEN_ERROR";
+  case TOKEN_EOF:
+    return "TOKEN_EOF";
+  default: {
+    static char buffer[32];
+    snprintf(buffer, sizeof(buffer), "UNKNOWN_TOKEN(%d)", type);
+    return buffer;
+  }
+  }
+}
 Scanner *initScanner(const char *source) {
   Scanner *scanner = (Scanner *)malloc(sizeof(Scanner));
 
@@ -56,8 +145,10 @@ static void skipWhitespaceAndComments(Scanner *scanner) {
         // next loop so to increment the current line.
         while (peek(scanner) != '\n' && !isAtEnd(scanner))
           advance(scanner);
+      } else {
+        return;
       }
-      return;
+      break;
     default:
       return;
     }
@@ -82,12 +173,12 @@ static bool isAlpha(char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
-static Token errorToken(Scanner *scanner, char *err) {
+static Token errorToken(Scanner *scanner, char *message) {
   Token token;
 
   token.type = TOKEN_ERROR;
-  token.start = err;
-  token.length = (int)strlen(err);
+  token.start = message;
+  token.length = (int)strlen(message);
   token.line = scanner->line;
 
   return token;
@@ -97,7 +188,7 @@ Token makeToken(Scanner *scanner, TokenType t) {
   Token token;
 
   token.type = t;
-  token.start = scanner->curr;
+  token.start = scanner->start;
   token.length = (int)(scanner->curr - scanner->start);
   token.line = scanner->line;
 
@@ -264,5 +355,6 @@ Token scanToken(Scanner *scanner) {
     return string(scanner);
   }
 
-  return errorToken(scanner, "Unexpected character.");
+  printf("Unexpected character \"%c\".\n", c);
+  return errorToken(scanner, "Unexpected character");
 }
