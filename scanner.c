@@ -104,7 +104,67 @@ Token makeToken(Scanner *scanner, TokenType t) {
   return token;
 }
 
-static TokenType identifierType(Scanner *scanner) { return TOKEN_IDENTIFIER; }
+static TokenType checkKeyword(Scanner *scanner, int start, int length,
+                              const char *rest, TokenType type) {
+  // Check if the rest of the string is the same (and so first check that the
+  // length is).
+  if (scanner->curr - scanner->start == start + length &&
+      memcmp(scanner->start + start, rest, length) == 0)
+    return type;
+
+  return TOKEN_IDENTIFIER;
+}
+
+static TokenType identifierType(Scanner *scanner) {
+  switch (scanner->start[0]) {
+  case 'a':
+    return checkKeyword(scanner, 1, 2, "nd", TOKEN_AND);
+  case 'c':
+    return checkKeyword(scanner, 1, 4, "lass", TOKEN_CLASS);
+  case 'e':
+    return checkKeyword(scanner, 1, 3, "lse", TOKEN_ELSE);
+  case 'f':
+    if (scanner->curr - scanner->start > 1) {
+      switch (scanner->start[1]) {
+      case 'a':
+        return checkKeyword(scanner, 2, 3, "lse", TOKEN_FALSE);
+      case 'o':
+        return checkKeyword(scanner, 2, 1, "r", TOKEN_FOR);
+      case 'u':
+        return checkKeyword(scanner, 2, 1, "n", TOKEN_FUN);
+      }
+    }
+    break;
+  case 'i':
+    return checkKeyword(scanner, 1, 1, "f", TOKEN_IF);
+  case 'n':
+    return checkKeyword(scanner, 1, 2, "il", TOKEN_NIL);
+  case 'o':
+    return checkKeyword(scanner, 1, 1, "r", TOKEN_OR);
+  case 'p':
+    return checkKeyword(scanner, 1, 4, "rint", TOKEN_PRINT);
+  case 'r':
+    return checkKeyword(scanner, 1, 5, "eturn", TOKEN_RETURN);
+  case 's':
+    return checkKeyword(scanner, 1, 4, "uper", TOKEN_SUPER);
+  case 't':
+    if (scanner->curr - scanner->start > 1) {
+      switch (scanner->start[1]) {
+      case 'h':
+        return checkKeyword(scanner, 2, 2, "is", TOKEN_THIS);
+      case 'r':
+        return checkKeyword(scanner, 2, 2, "ue", TOKEN_TRUE);
+      }
+    }
+    break;
+  case 'v':
+    return checkKeyword(scanner, 1, 2, "ar", TOKEN_VAR);
+  case 'w':
+    return checkKeyword(scanner, 1, 4, "hile", TOKEN_WHILE);
+  }
+
+  return TOKEN_IDENTIFIER;
+}
 
 // Returns an identifier, it must start with an alpha and can proceed with
 // alphanumeric.

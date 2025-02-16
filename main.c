@@ -56,7 +56,8 @@ static void runFile(const char *path) {
   VM *vm = initVM();
 
   char *source = readFile(path);
-  // printf("=== src ===\n%s\n===========\n", source);
+
+  printf("=== src ===\n%s\n===========\n", source);
 
   InterpretResult res = interpret(vm, source);
   free(source);
