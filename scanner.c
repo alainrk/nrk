@@ -48,8 +48,16 @@ const char *tokenTypeToString(TokenType type) {
     return "TOKEN_IDENTIFIER";
   case TOKEN_STRING:
     return "TOKEN_STRING";
-  case TOKEN_TEMPL_STRING:
-    return "TOKEN_TEMPL_STRING";
+  case TOKEN_TEMPL_START:
+    return "TOKEN_TEMPL_START";
+  case TOKEN_TEMPL_END:
+    return "TOKEN_TEMPL_END";
+  case TOKEN_TEMPL_INTERP_START:
+    return "TOKEN_TEMPL_INTERP_START";
+  case TOKEN_TEMPL_INTERP_END:
+    return "TOKEN_TEMPL_INTERP_END";
+  case TOKEN_TEMPL_CONTENT:
+    return "TOKEN_TEMPL_CONTENT";
   case TOKEN_NUMBER:
     return "TOKEN_NUMBER";
   case TOKEN_AND:
@@ -269,18 +277,60 @@ static Token identifier(Scanner *scanner) {
 }
 
 Token templateString(Scanner *scanner) {
-  while (peek(scanner) != '`' && !isAtEnd(scanner)) {
-    if (peek(scanner) == '\n')
+  while (!isAtEnd(scanner)) {
+
+    // Closing backtick of template
+    if (peek(scanner) == '`') {
+      // First, consume the remaining content, if any.
+      if (scanner->curr > scanner->start) {
+        return makeToken(scanner, TOKEN_TEMPL_CONTENT);
+      }
+      advance(scanner);
+      scanner->inTemplate = false;
+      return makeToken(scanner, TOKEN_TEMPL_END);
+    }
+
+    // Interpolation -> start accumulating for expression
+    if (peek(scanner) == '$' && peekNext(scanner) == '{') {
+      // Generate the non-expression stuff first (content), if any
+      if (scanner->curr > scanner->start) {
+        return makeToken(scanner, TOKEN_TEMPL_CONTENT);
+      }
+
+      advance(scanner); // $
+      advance(scanner); // {
+
+      // Exit template mode, to allow the scanner collecting the expression
+      // inside, and increment the nesting as we are starting a new one.
+      scanner->templateNesting++;
+      scanner->inTemplate = false;
+
+      return makeToken(scanner, TOKEN_TEMPL_INTERP_START);
+    }
+
+    // NOTE: Since I'm in scanner->inTemplate == false, I'll be in the scanner
+    // loop, so I'll have to consume it there.
+    //
+    // if (peek(scanner) == '}' && scanner->templateNesting > 0) {
+    //   advance(scanner); // }
+    //   scanner->templateNesting--;
+    //   return makeToken(scanner, TOKEN_TEMPL_INTERP_END);
+    // }
+
+    if (peek(scanner) == '\n') {
       scanner->line++;
+    }
+
+    // In any other case, advance one char (e.g. content increasing)
     advance(scanner);
   }
 
-  if (isAtEnd(scanner)) {
-    return errorToken(scanner, "Unterminated string");
+  // Consume the remaining content if at the end
+  if (scanner->curr > scanner->start) {
+    return makeToken(scanner, TOKEN_TEMPL_CONTENT);
   }
 
-  advance(scanner);
-  return makeToken(scanner, TOKEN_TEMPL_STRING);
+  return errorToken(scanner, "Unterminated template string.");
 }
 
 Token string(Scanner *scanner) {
@@ -291,7 +341,7 @@ Token string(Scanner *scanner) {
   }
 
   if (isAtEnd(scanner)) {
-    return errorToken(scanner, "Unterminated string");
+    return errorToken(scanner, "Unterminated string.");
   }
 
   advance(scanner);
@@ -322,6 +372,10 @@ Token scanToken(Scanner *scanner) {
     return makeToken(scanner, TOKEN_EOF);
   }
 
+  if (scanner->inTemplate) {
+    return templateString(scanner);
+  }
+
   char c = advance(scanner);
 
   // printf("Char: %c\n", c);
@@ -341,8 +395,18 @@ Token scanToken(Scanner *scanner) {
     return makeToken(scanner, TOKEN_RIGHT_PAREN);
   case '{':
     return makeToken(scanner, TOKEN_LEFT_BRACE);
-  case '}':
+  case '}': {
+    // If I was in a template but consuming an interpolated expression, consume
+    // the closing brace.
+    if (scanner->templateNesting > 0) {
+      scanner->templateNesting--;
+      // Go back to template mode to keep consuming the non-expression content.
+      scanner->inTemplate = true;
+      return makeToken(scanner, TOKEN_TEMPL_INTERP_END);
+    }
+    // Otherwise just consume the normal brace.
     return makeToken(scanner, TOKEN_RIGHT_BRACE);
+  }
   case ';':
     return makeToken(scanner, TOKEN_SEMICOLON);
   case ',':
@@ -371,8 +435,13 @@ Token scanToken(Scanner *scanner) {
                      match(scanner, '=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
   case '"':
     return string(scanner);
-  case '`':
-    return templateString(scanner);
+
+  // Consume the first backtick of template strings [`]This is ${num}
+  // expressions`
+  case '`': {
+    scanner->inTemplate = true;
+    return makeToken(scanner, TOKEN_TEMPL_START);
+  }
   }
 
   printf("Unexpected character \"%c\".\n", c);

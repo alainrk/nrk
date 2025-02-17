@@ -1,10 +1,14 @@
 #ifndef nrk_scanner_h
 #define nrk_scanner_h
 
+#include <stdbool.h>
+
 typedef struct {
   const char *start;
   const char *curr;
   int line;
+  bool inTemplate;
+  int templateNesting;
 } Scanner;
 
 typedef enum {
@@ -30,10 +34,15 @@ typedef enum {
   TOKEN_GREATER_EQUAL,
   TOKEN_LESS,
   TOKEN_LESS_EQUAL,
+  // Template strings.
+  TOKEN_TEMPL_START,        // Opening "`"
+  TOKEN_TEMPL_END,          // Closing "`"
+  TOKEN_TEMPL_INTERP_START, // Opening "${"
+  TOKEN_TEMPL_INTERP_END,   // Closing "}"
+  TOKEN_TEMPL_CONTENT,      // Non-expression content
   // Literals.
   TOKEN_IDENTIFIER,
   TOKEN_STRING,
-  TOKEN_TEMPL_STRING,
   TOKEN_NUMBER,
   // Keywords.
   TOKEN_AND,
