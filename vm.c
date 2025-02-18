@@ -154,6 +154,19 @@ InterpretResult interpretChunk(VM *vm, Chunk *chunk) {
 }
 
 InterpretResult interpret(VM *vm, const char *source) {
-  compile(vm, source);
-  return INTERPRET_OK;
+  Chunk chunk;
+  initChunk(&chunk);
+
+  if (!compile(vm, source, &chunk)) {
+    freeChunk(&chunk);
+    return INTERPRET_COMPILE_ERROR;
+  }
+
+  vm->chunk = &chunk;
+  vm->ip = vm->chunk->code;
+
+  InterpretResult res = run(vm);
+
+  freeChunk(&chunk);
+  return res;
 }
