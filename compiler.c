@@ -3,6 +3,7 @@
 #include "common.h"
 #include "scanner.h"
 #include "vm.h"
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -81,27 +82,27 @@ static void consume(Scanner *scanner, Parser *parser, TokenType type,
   errorAtCurrent(parser, message);
 }
 
-static void emitByte(Parser *parser, Chunk *currChunk, u_int8_t byte) {
-  writeChunk(currChunk, byte, parser->prev.line);
-}
+static void emitBytes(Parser *parser, Chunk *currChunk, int count, ...) {
+  va_list args;
+  va_start(args, count);
 
-static void emitBytes(Parser *parser, Chunk *currChunk, u_int8_t byte1,
-                      u_int8_t byte2) {
-  emitByte(parser, currChunk, byte1);
-  emitByte(parser, currChunk, byte2);
+  for (int i = 0; i < count; i++) {
+    u_int8_t byte = (u_int8_t)va_arg(args, int);
+    writeChunk(currChunk, byte, parser->prev.line);
+  }
+
+  va_end(args);
 }
 
 static void emitReturn(Parser *parser, Chunk *currChunk) {
-  emitByte(parser, currChunk, OP_RETURN);
+  emitBytes(parser, currChunk, 1, OP_RETURN);
 }
 
 static void emitConstant(Parser *parser, Chunk *currChunk, Value v) {
   int idx = addConstant(currChunk, v);
 
   if (idx <= UINT8_MAX) {
-    // Use OP_CONSTANT
-    emitByte(parser, currChunk, OP_CONSTANT);
-    emitByte(parser, currChunk, idx);
+    emitBytes(parser, currChunk, 2, OP_CONSTANT, idx);
     return;
   }
 
@@ -111,14 +112,13 @@ static void emitConstant(Parser *parser, Chunk *currChunk, Value v) {
     return;
   }
 
-  // Use OP_CONSTANT_LONG
-  emitByte(parser, currChunk, OP_CONSTANT_LONG);
+  // Use OP_CONSTANT_LONG and write the 24-bit (3 bytes) applying AND bit by bit
+  // for the relevant part and get rid of the rest
+  u_int8_t b1 = (idx & 0xff0000) >> 16;
+  u_int8_t b2 = (idx & 0x00ff00) >> 8;
+  u_int8_t b3 = (idx & 0x0000ff);
 
-  // Write the 24-bit (3 bytes)
-  // Apply AND bit by bit for the relevant part and get rid of the rest
-  emitByte(parser, currChunk, (idx & 0xff0000) >> 16);
-  emitByte(parser, currChunk, (idx & 0x00ff00) >> 8);
-  emitByte(parser, currChunk, (idx & 0x0000ff));
+  emitBytes(parser, currChunk, 4, OP_CONSTANT_LONG, b1, b2, b3);
 }
 
 static void endCompiler(Parser *parser, Chunk *currChunk) {
