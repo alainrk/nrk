@@ -1,8 +1,10 @@
 #include "compiler.h"
+#include "chunk.h"
 #include "common.h"
 #include "scanner.h"
 #include "vm.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 // TODO: Probably in this file we're passing around too many parameters. I could
 // simply pass around the parser (and maybe something else), and get what I need
@@ -79,9 +81,62 @@ static void consume(Scanner *scanner, Parser *parser, TokenType type,
   errorAtCurrent(parser, message);
 }
 
+static void emitByte(Parser *parser, Chunk *currChunk, u_int8_t byte) {
+  writeChunk(currChunk, byte, parser->prev.line);
+}
+
+static void emitBytes(Parser *parser, Chunk *currChunk, u_int8_t byte1,
+                      u_int8_t byte2) {
+  emitByte(parser, currChunk, byte1);
+  emitByte(parser, currChunk, byte2);
+}
+
+static void emitReturn(Parser *parser, Chunk *currChunk) {
+  emitByte(parser, currChunk, OP_RETURN);
+}
+
+static void emitConstant(Parser *parser, Chunk *currChunk, Value v) {
+  int idx = addConstant(currChunk, v);
+
+  if (idx <= UINT8_MAX) {
+    // Use OP_CONSTANT
+    emitByte(parser, currChunk, OP_CONSTANT);
+    emitByte(parser, currChunk, idx);
+    return;
+  }
+
+  // TODO: Check if correct for 3 bytes at most
+  if (idx > 0x00FFFFFE) {
+    error(parser, "Too many constants in one chunk.");
+    return;
+  }
+
+  // Use OP_CONSTANT_LONG
+  emitByte(parser, currChunk, OP_CONSTANT_LONG);
+
+  // Write the 24-bit (3 bytes)
+  // Apply AND bit by bit for the relevant part and get rid of the rest
+  emitByte(parser, currChunk, (idx & 0xff0000) >> 16);
+  emitByte(parser, currChunk, (idx & 0x00ff00) >> 8);
+  emitByte(parser, currChunk, (idx & 0x0000ff));
+}
+
+static void endCompiler(Parser *parser, Chunk *currChunk) {
+  // TODO: Temporarily use OP_RETURN to print values at the end of expressions
+  emitReturn(parser, currChunk);
+}
+
+static void number(Parser *parser, Chunk *currChunk) {
+  double v = strtod(parser->prev.start, NULL);
+  emitConstant(parser, currChunk, v);
+}
+
+static void expression() {}
+
 // Returns true is the parser haven't had any error.
 bool compile(VM *vm, const char *source, Chunk *chunk) {
   Scanner *scanner = initScanner(source);
+  Chunk *compilingChunk = chunk;
 
   // TODO: Is it better to init the parser outside and pass it in the compile
   // instead from the vm.c[interpret()]?
@@ -115,7 +170,8 @@ bool compile(VM *vm, const char *source, Chunk *chunk) {
 
   advance(scanner, &parser);
   // expression();
-  // consume(TOKEN_EOF, "Expect end of expression.");
+  consume(scanner, &parser, TOKEN_EOF, "Expect end of expression.");
+  endCompiler(&parser, chunk);
 
   return !parser.hadError;
 }

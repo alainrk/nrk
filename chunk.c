@@ -35,16 +35,17 @@ void writeConstant(Chunk *chunk, Value value, int line) {
     // Use OP_CONSTANT
     writeChunk(chunk, OP_CONSTANT, line);
     writeChunk(chunk, idx, line);
-  } else {
-    // Use OP_CONSTANT_LONG
-    writeChunk(chunk, OP_CONSTANT_LONG, line);
-
-    // Write the 24-bit (3 bytes)
-    // Apply AND bit by bit for the relevant part and get rid of the rest
-    writeChunk(chunk, (idx & 0xff0000) >> 16, line);
-    writeChunk(chunk, (idx & 0x00ff00) >> 8, line);
-    writeChunk(chunk, (idx & 0x0000ff), line);
+    return;
   }
+
+  // Use OP_CONSTANT_LONG
+  writeChunk(chunk, OP_CONSTANT_LONG, line);
+
+  // Write the 24-bit (3 bytes)
+  // Apply AND bit by bit for the relevant part and get rid of the rest
+  writeChunk(chunk, (idx & 0xff0000) >> 16, line);
+  writeChunk(chunk, (idx & 0x00ff00) >> 8, line);
+  writeChunk(chunk, (idx & 0x0000ff), line);
 }
 
 int getInstructionLine(Chunk *chunk, int instrIdx) {
