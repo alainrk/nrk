@@ -26,6 +26,8 @@ typedef struct {
 
 } Parser;
 
+static Chunk *currentChunk(Chunk *chunk) { return chunk; }
+
 static void errorAt(Parser *parser, Token *token, const char *message) {
   // If already panicking, no need to execute further and keep logging easy to
   // read. The flag will be cleared later, as the parser can get lost further
@@ -82,27 +84,27 @@ static void consume(Scanner *scanner, Parser *parser, TokenType type,
   errorAtCurrent(parser, message);
 }
 
-static void emitBytes(Parser *parser, Chunk *currChunk, int count, ...) {
+static void emitBytes(Parser *parser, Chunk *chunk, int count, ...) {
   va_list args;
   va_start(args, count);
 
   for (int i = 0; i < count; i++) {
     u_int8_t byte = (u_int8_t)va_arg(args, int);
-    writeChunk(currChunk, byte, parser->prev.line);
+    writeChunk(currentChunk(chunk), byte, parser->prev.line);
   }
 
   va_end(args);
 }
 
-static void emitReturn(Parser *parser, Chunk *currChunk) {
-  emitBytes(parser, currChunk, 1, OP_RETURN);
+static void emitReturn(Parser *parser, Chunk *chunk) {
+  emitBytes(parser, currentChunk(chunk), 1, OP_RETURN);
 }
 
-static void emitConstant(Parser *parser, Chunk *currChunk, Value v) {
-  int idx = addConstant(currChunk, v);
+static void emitConstant(Parser *parser, Chunk *chunk, Value v) {
+  int idx = addConstant(currentChunk(chunk), v);
 
   if (idx <= UINT8_MAX) {
-    emitBytes(parser, currChunk, 2, OP_CONSTANT, idx);
+    emitBytes(parser, currentChunk(chunk), 2, OP_CONSTANT, idx);
     return;
   }
 
@@ -118,20 +120,45 @@ static void emitConstant(Parser *parser, Chunk *currChunk, Value v) {
   u_int8_t b2 = (idx & 0x00ff00) >> 8;
   u_int8_t b3 = (idx & 0x0000ff);
 
-  emitBytes(parser, currChunk, 4, OP_CONSTANT_LONG, b1, b2, b3);
+  emitBytes(parser, currentChunk(chunk), 4, OP_CONSTANT_LONG, b1, b2, b3);
 }
 
-static void endCompiler(Parser *parser, Chunk *currChunk) {
+static void endCompiler(Parser *parser, Chunk *chunk) {
   // TODO: Temporarily use OP_RETURN to print values at the end of expressions
-  emitReturn(parser, currChunk);
-}
-
-static void number(Parser *parser, Chunk *currChunk) {
-  double v = strtod(parser->prev.start, NULL);
-  emitConstant(parser, currChunk, v);
+  emitReturn(parser, currentChunk(chunk));
 }
 
 static void expression() {}
+
+// Prefix expression: We assume "(" has already been consumed.
+static void grouping(Scanner *scanner, Parser *parser) {
+  expression();
+  consume(scanner, parser, TOKEN_RIGHT_PAREN, "Expect ')' after expressions.");
+}
+
+// Prefix expression: We assume "(" has already been consumed.
+static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
+  TokenType t = parser->prev.type;
+
+  // Compile the operand
+  expression();
+
+  // Emit the operator instruction
+  switch (t) {
+  case TOKEN_MINUS:
+    emitBytes(parser, currentChunk(chunk), 1, OP_NEGATE);
+    break;
+  default:
+    // Unreachable case
+    return;
+  }
+  consume(scanner, parser, TOKEN_RIGHT_PAREN, "Expect ')' after expressions.");
+}
+
+static void number(Parser *parser, Chunk *chunk) {
+  double v = strtod(parser->prev.start, NULL);
+  emitConstant(parser, currentChunk(chunk), v);
+}
 
 // Returns true is the parser haven't had any error.
 bool compile(VM *vm, const char *source, Chunk *chunk) {
