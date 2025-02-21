@@ -26,6 +26,20 @@ typedef struct {
 
 } Parser;
 
+typedef enum {
+  PREC_NONE,
+  PREC_ASSIGNMENT, // =
+  PREC_OR,         // or
+  PREC_AND,        // and
+  PREC_EQUALITY,   // == !=
+  PREC_COMPARISON, // < > <= >=
+  PREC_TERM,       // + -
+  PREC_FACTOR,     // * /
+  PREC_UNARY,      // ! -
+  PREC_CALL,       // . ()
+  PREC_PRIMARY
+} Precedence;
+
 static Chunk *currentChunk(Chunk *chunk) { return chunk; }
 
 static void errorAt(Parser *parser, Token *token, const char *message) {
@@ -128,10 +142,23 @@ static void endCompiler(Parser *parser, Chunk *chunk) {
   emitReturn(parser, currentChunk(chunk));
 }
 
-static void expression() {}
+// Parses the expression until it doesn't find lower precedence level that the
+// passed in one.
+//
+// e.g. `-a.b + c`
+// If we call parsePrecedence(PREC_ASSIGNMENT), then it will parse the entire
+// expression because + has higher precedence than assignment. If instead we
+// call parsePrecedence(PREC_UNARY), it will compile the -a.b and stop there. It
+// doesn’t keep going through the + because the addition has lower precedence
+// than unary operators.
+static void parsePrecedence(Precedence precedence) { return; }
+
+static void expression() { parsePrecedence(PREC_ASSIGNMENT); }
 
 // Prefix expression: We assume "(" has already been consumed.
 static void grouping(Scanner *scanner, Parser *parser) {
+  // This will generate all the necessary bytecode needed to evaluate the
+  // expression.
   expression();
   consume(scanner, parser, TOKEN_RIGHT_PAREN, "Expect ')' after expressions.");
 }
@@ -140,11 +167,14 @@ static void grouping(Scanner *scanner, Parser *parser) {
 static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
   TokenType t = parser->prev.type;
 
-  // Compile the operand
+  // Compile the operand.
   expression();
 
-  // Emit the operator instruction
+  // Emit the operator instruction, AFTER the expression, so it gets then popped
+  // and the operator applied.
   switch (t) {
+    // When parsing the operand to unary -, we need to compile only expressions
+    // at a certain precedence level or higher.
   case TOKEN_MINUS:
     emitBytes(parser, currentChunk(chunk), 1, OP_NEGATE);
     break;
@@ -152,7 +182,6 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
     // Unreachable case
     return;
   }
-  consume(scanner, parser, TOKEN_RIGHT_PAREN, "Expect ')' after expressions.");
 }
 
 static void number(Parser *parser, Chunk *chunk) {
