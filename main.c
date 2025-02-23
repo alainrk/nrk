@@ -10,7 +10,10 @@
 static void repl() {
   VM *vm = initVM();
 
+  printf("\nWelcome to nrk v0.0.1.\n");
+
   for (;;) {
+    printf("> ");
     char line[1024];
     if (!fgets(line, sizeof(line), stdin)) {
       printf("\n");
