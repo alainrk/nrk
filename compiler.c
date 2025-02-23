@@ -150,7 +150,7 @@ static void emitConstant(Parser *parser, Chunk *chunk, Value v) {
 
   emitBytes(parser, currentChunk(chunk), 4, OP_CONSTANT_LONG, b1, b2, b3);
 }
-//
+
 // Parses the expression with given precedence or higher.
 // e.g. `-a.b + c`
 // If we call parsePrecedence(PREC_ASSIGNMENT), then it will parse the entire
@@ -158,17 +158,47 @@ static void emitConstant(Parser *parser, Chunk *chunk, Value v) {
 // call parsePrecedence(PREC_UNARY), it will compile the -a.b and stop there. It
 // doesn’t keep going through the + because the addition has lower precedence
 // than unary operators.
-static void parsePrecedence(Precedence precedence) { return; }
+//
+// Flow:
+//
+// 1. expression() -> parsePrecedence()
+//  2. parsePrecedence() -> getRule()
+//   3. getRule() -> ParserTable
+//    4. ParserTable -> binary() / unary() / grouping() / number()
+//     - unary() -> parsePrecedence()
+//     - binary() -> parsePrecedence()
+//                -> getRule()
+//     - grouping() -> expression()
+//     - number() -> Consume byte.
+//
+static void parsePrecedence(Scanner *scanner, Parser *parser,
+                            Precedence precedence, Chunk *chunk) {
+  advance(scanner, parser);
+
+  // The first token must always be part of a prefix operation, by definition.
+  ParseFn prefixRule = getRule(parser->prev.type)->prefix;
+  if (prefixRule == NULL) {
+    error(parser, "Expect expression");
+    return;
+  }
+
+  prefixRule(scanner, parser, chunk);
+
+  // If there is some infix rule, the prefix above might an operand of it.
+  // Go ahead until, and only if, the precedence allows it.
+  while (precedence <= getRule(parser->prev.type)->precedence) {
+    advance(scanner, parser);
+    ParseFn infixRule = getRule(parser->prev.type)->infix;
+    infixRule(scanner, parser, chunk);
+  }
+}
 
 static void endCompiler(Parser *parser, Chunk *chunk) {
   // TODO: Temporarily use OP_RETURN to print values at the end of expressions
   emitReturn(parser, currentChunk(chunk));
 }
 
-ParseRule *getRule(TokenType t) {
-  // TODO: Implement this
-  return 0;
-}
+ParseRule *getRule(TokenType t) { return &rules[t]; }
 
 static void binary(Scanner *scanner, Parser *parser, Chunk *chunk) {
   TokenType t = parser->prev.type;
@@ -205,7 +235,7 @@ static void binary(Scanner *scanner, Parser *parser, Chunk *chunk) {
   // To do that we'd call parsePrecedence with the same precedence instead.
 
   ParseRule *rule = getRule(t);
-  parsePrecedence((Precedence)(rule->precedence + 1));
+  parsePrecedence(scanner, parser, (Precedence)(rule->precedence + 1), chunk);
 
   switch (t) {
   case TOKEN_PLUS:
@@ -226,16 +256,16 @@ static void binary(Scanner *scanner, Parser *parser, Chunk *chunk) {
   }
 }
 
-static void expression() {
+static void expression(Scanner *scanner, Parser *parser, Chunk *chunk) {
   // This way we parse all the possible expression, being ASSIGNMENT the lowest.
-  parsePrecedence(PREC_ASSIGNMENT);
+  parsePrecedence(scanner, parser, PREC_ASSIGNMENT, chunk);
 }
 
 // Prefix expression: We assume "(" has already been consumed.
 static void grouping(Scanner *scanner, Parser *parser, Chunk *chunk) {
   // This will generate all the necessary bytecode needed to evaluate the
   // expression.
-  expression();
+  expression(scanner, parser, chunk);
   consume(scanner, parser, TOKEN_RIGHT_PAREN, "Expect ')' after expressions.");
 }
 
@@ -244,7 +274,7 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
   TokenType t = parser->prev.type;
 
   // Compile the operand.
-  parsePrecedence(PREC_UNARY);
+  parsePrecedence(scanner, parser, PREC_UNARY, chunk);
 
   // Emit the operator instruction, AFTER the expression, so it gets then popped
   // and the operator applied.

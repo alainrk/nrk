@@ -1,6 +1,7 @@
 #ifndef nrk_compiler_h
 #define nrk_compiler_h
 
+#include "chunk.h"
 #include "scanner.h"
 #include "vm.h"
 
@@ -45,10 +46,16 @@ typedef struct {
   Precedence precedence;
 } ParseRule;
 
+// Define these functions here just because C is one-pass compilation, and our
+// grammar requires mutual recursivity.
 static void grouping(Scanner *scanner, Parser *parser, Chunk *chunk);
 static void unary(Scanner *scanner, Parser *parser, Chunk *chunk);
 static void binary(Scanner *scanner, Parser *parser, Chunk *chunk);
 static void number(Scanner *scanner, Parser *parser, Chunk *chunk);
+static void expression(Scanner *scanner, Parser *parser, Chunk *chunk);
+static ParseRule *getRule(TokenType type);
+static void parsePrecedence(Scanner *scanner, Parser *parser,
+                            Precedence precedence, Chunk *chunk);
 
 bool compile(VM *vm, const char *source, Chunk *chunk);
 
