@@ -7,6 +7,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef DEBUG_PRINT_CODE
+#include "debug.h"
+#endif
+
 // TODO: Probably in this file we're passing around too many parameters. I could
 // simply pass around the parser (and maybe something else), and get what I need
 // from there.
@@ -194,8 +198,13 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
 }
 
 static void endCompiler(Parser *parser, Chunk *chunk) {
-  // TODO: Temporarily use OP_RETURN to print values at the end of expressions
   emitReturn(parser, currentChunk(chunk));
+
+#ifdef DEBUG_PRINT_CODE
+  if (!parser->hadError) {
+    disassembleChunk(chunk, "code");
+  }
+#endif
 }
 
 ParseRule *getRule(TokenType t) { return &rules[t]; }
@@ -298,40 +307,13 @@ static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
 // Returns true is the parser haven't had any error.
 bool compile(VM *vm, const char *source, Chunk *chunk) {
   Scanner *scanner = initScanner(source);
-  Chunk *compilingChunk = chunk;
-
-  // TODO: Is it better to init the parser outside and pass it in the compile
-  // instead from the vm.c[interpret()]?
   Parser parser;
 
   parser.hadError = false;
   parser.panicMode = false;
 
-  // int line = -1;
-  // for (;;) {
-  //   Token token = scanToken(scanner);
-  //   if (token.line != line) {
-  //     printf("%04d ", token.line);
-  //   } else {
-  //     printf("    | ");
-  //   }
-  //
-  //   // %.*s allows to print exactly token.length chars as we don't have a \0
-  //   // here.
-  //   printf("%-25s \"%.*s\"\n", tokenTypeToString(token.type), token.length,
-  //          token.start);
-  //
-  //   if (token.type == TOKEN_ERROR)
-  //     break;
-  //   if (token.type == TOKEN_EOF)
-  //     break;
-  // }
-  //
-  // freeScanner(scanner);
-  // return true;
-
   advance(scanner, &parser);
-  // expression();
+  expression(scanner, &parser, chunk);
   consume(scanner, &parser, TOKEN_EOF, "Expect end of expression.");
   endCompiler(&parser, chunk);
 
