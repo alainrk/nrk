@@ -11,34 +11,48 @@
 // simply pass around the parser (and maybe something else), and get what I need
 // from there.
 
-typedef struct {
-  Token curr;
-  Token prev;
-
-  // This is useful to avoid cascade of errors. If we have an error we stop
-  // right away and inform the user for better debugging.
-  bool hadError;
-
-  // Despite we could use setjmp() and longjmp() to have a sort of exceptions it
-  // can get very messy. So we just keep track of panic mode through a state
-  // flag here.
-  bool panicMode;
-
-} Parser;
-
-typedef enum {
-  PREC_NONE,
-  PREC_ASSIGNMENT, // =
-  PREC_OR,         // or
-  PREC_AND,        // and
-  PREC_EQUALITY,   // == !=
-  PREC_COMPARISON, // < > <= >=
-  PREC_TERM,       // + -
-  PREC_FACTOR,     // * /
-  PREC_UNARY,      // ! -
-  PREC_CALL,       // . ()
-  PREC_PRIMARY
-} Precedence;
+ParseRule rules[] = {
+    [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
+    [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
+    [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_RIGHT_BRACE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
+    [TOKEN_DOT] = {NULL, NULL, PREC_NONE},
+    [TOKEN_MINUS] = {unary, binary, PREC_TERM},
+    [TOKEN_PLUS] = {NULL, binary, PREC_TERM},
+    [TOKEN_SEMICOLON] = {NULL, NULL, PREC_NONE},
+    [TOKEN_SLASH] = {NULL, binary, PREC_FACTOR},
+    [TOKEN_STAR] = {NULL, binary, PREC_FACTOR},
+    [TOKEN_BANG] = {NULL, NULL, PREC_NONE},
+    [TOKEN_BANG_EQUAL] = {NULL, NULL, PREC_NONE},
+    [TOKEN_EQUAL] = {NULL, NULL, PREC_NONE},
+    [TOKEN_EQUAL_EQUAL] = {NULL, NULL, PREC_NONE},
+    [TOKEN_GREATER] = {NULL, NULL, PREC_NONE},
+    [TOKEN_GREATER_EQUAL] = {NULL, NULL, PREC_NONE},
+    [TOKEN_LESS] = {NULL, NULL, PREC_NONE},
+    [TOKEN_LESS_EQUAL] = {NULL, NULL, PREC_NONE},
+    [TOKEN_IDENTIFIER] = {NULL, NULL, PREC_NONE},
+    [TOKEN_STRING] = {NULL, NULL, PREC_NONE},
+    [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
+    [TOKEN_AND] = {NULL, NULL, PREC_NONE},
+    [TOKEN_CLASS] = {NULL, NULL, PREC_NONE},
+    [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_FALSE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_FOR] = {NULL, NULL, PREC_NONE},
+    [TOKEN_FUN] = {NULL, NULL, PREC_NONE},
+    [TOKEN_IF] = {NULL, NULL, PREC_NONE},
+    [TOKEN_NIL] = {NULL, NULL, PREC_NONE},
+    [TOKEN_OR] = {NULL, NULL, PREC_NONE},
+    [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
+    [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
+    [TOKEN_SUPER] = {NULL, NULL, PREC_NONE},
+    [TOKEN_THIS] = {NULL, NULL, PREC_NONE},
+    [TOKEN_TRUE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
+    [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
+    [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
+};
 
 static Chunk *currentChunk(Chunk *chunk) { return chunk; }
 
@@ -122,7 +136,7 @@ static void emitConstant(Parser *parser, Chunk *chunk, Value v) {
     return;
   }
 
-  // TODO: Check if correct for 3 bytes at most
+  // TODO: Check if at most storable in 3 bytes
   if (idx > 0x00FFFFFE) {
     error(parser, "Too many constants in one chunk.");
     return;
@@ -136,15 +150,8 @@ static void emitConstant(Parser *parser, Chunk *chunk, Value v) {
 
   emitBytes(parser, currentChunk(chunk), 4, OP_CONSTANT_LONG, b1, b2, b3);
 }
-
-static void endCompiler(Parser *parser, Chunk *chunk) {
-  // TODO: Temporarily use OP_RETURN to print values at the end of expressions
-  emitReturn(parser, currentChunk(chunk));
-}
-
-// Parses the expression until it doesn't find lower precedence level that the
-// passed in one.
 //
+// Parses the expression with given precedence or higher.
 // e.g. `-a.b + c`
 // If we call parsePrecedence(PREC_ASSIGNMENT), then it will parse the entire
 // expression because + has higher precedence than assignment. If instead we
@@ -153,10 +160,79 @@ static void endCompiler(Parser *parser, Chunk *chunk) {
 // than unary operators.
 static void parsePrecedence(Precedence precedence) { return; }
 
-static void expression() { parsePrecedence(PREC_ASSIGNMENT); }
+static void endCompiler(Parser *parser, Chunk *chunk) {
+  // TODO: Temporarily use OP_RETURN to print values at the end of expressions
+  emitReturn(parser, currentChunk(chunk));
+}
+
+ParseRule *getRule(TokenType t) {
+  // TODO: Implement this
+  return 0;
+}
+
+static void binary(Scanner *scanner, Parser *parser, Chunk *chunk) {
+  TokenType t = parser->prev.type;
+
+  // Example: 2 * 3 + 4
+  //
+  // When we parse the right operand of the * expression, we need to just
+  // capture 3, and not 3 + 4, because + is lower precedence than *.
+  //
+  // Instead of defining a separate function for each binary operator, that
+  // would call parsePrecedence() and pass in the correct precedence level, we
+  // can consider that each binary operator’s right-hand operand precedence is
+  // one level higher than its own.
+  //
+  // So we can look that up dynamically with getRule(), calling then
+  // parsePrecedence() with one level higher than this operator’s level.
+  //
+  // ---
+  //
+  // NOTE We use one higher level of precedence for the right operand because
+  // the binary operators are left-associative.
+  //
+  // Given a series of the same operator, like: 1 + 2 + 3 + 4.
+  // We want to parse it like: ((1 + 2) + 3) + 4.
+  //
+  // Thus, when parsing the right-hand operand to the first +, we want to
+  // consume the 2, but not the rest, so we use one level above +’s precedence.
+  //
+  // But if our operator was right-associative, this would be wrong.
+  //
+  // Given: a = b = c = d.
+  // We need to parse it like: a = (b = (c = d)).
+  //
+  // To do that we'd call parsePrecedence with the same precedence instead.
+
+  ParseRule *rule = getRule(t);
+  parsePrecedence((Precedence)(rule->precedence + 1));
+
+  switch (t) {
+  case TOKEN_PLUS:
+    emitBytes(parser, currentChunk(chunk), 1, OP_ADD);
+    break;
+  case TOKEN_MINUS:
+    emitBytes(parser, currentChunk(chunk), 1, OP_SUBTRACT);
+    break;
+  case TOKEN_STAR:
+    emitBytes(parser, currentChunk(chunk), 1, OP_MULTIPLY);
+    break;
+  case TOKEN_SLASH:
+    emitBytes(parser, currentChunk(chunk), 1, OP_DIVIDE);
+    break;
+  // Unreachable case
+  default:
+    return;
+  }
+}
+
+static void expression() {
+  // This way we parse all the possible expression, being ASSIGNMENT the lowest.
+  parsePrecedence(PREC_ASSIGNMENT);
+}
 
 // Prefix expression: We assume "(" has already been consumed.
-static void grouping(Scanner *scanner, Parser *parser) {
+static void grouping(Scanner *scanner, Parser *parser, Chunk *chunk) {
   // This will generate all the necessary bytecode needed to evaluate the
   // expression.
   expression();
@@ -168,7 +244,7 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
   TokenType t = parser->prev.type;
 
   // Compile the operand.
-  expression();
+  parsePrecedence(PREC_UNARY);
 
   // Emit the operator instruction, AFTER the expression, so it gets then popped
   // and the operator applied.
@@ -178,13 +254,13 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
   case TOKEN_MINUS:
     emitBytes(parser, currentChunk(chunk), 1, OP_NEGATE);
     break;
+  // Unreachable case
   default:
-    // Unreachable case
     return;
   }
 }
 
-static void number(Parser *parser, Chunk *chunk) {
+static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
   double v = strtod(parser->prev.start, NULL);
   emitConstant(parser, currentChunk(chunk), v);
 }
