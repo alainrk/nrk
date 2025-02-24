@@ -2,7 +2,7 @@
 
 # Compiler settings
 CC = clang
-CFLAGS = -Wall -Wpointer-sign -Wextra -g
+CFLAGS = -std=c99 -Wall -Wpointer-sign -Wextra -g
 
 # Project files
 SRCS = $(wildcard *.c)
@@ -26,7 +26,7 @@ build:
 
 # Clean build files
 clean:
-	rm -f $(OBJS) $(TARGET) compile_commands.json
+	rm -f $(OBJS) $(TARGET) *.i *.s *.bc compile_commands.json
 
 # Run the program
 run: $(TARGET)

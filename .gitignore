@@ -28,6 +28,11 @@
 *.so.*
 *.dylib
 
+# Temps (--save-temps)
+*.i
+*.s
+*.bc
+
 # Executables
 *.exe
 *.out
