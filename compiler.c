@@ -190,7 +190,7 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
 
   // If there is some infix rule, the prefix above might an operand of it.
   // Go ahead until, and only if, the precedence allows it.
-  while (precedence <= getRule(parser->prev.type)->precedence) {
+  while (precedence <= getRule(parser->curr.type)->precedence) {
     advance(scanner, parser);
     ParseFn infixRule = getRule(parser->prev.type)->infix;
     infixRule(scanner, parser, chunk);
