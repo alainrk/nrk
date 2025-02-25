@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "chunk.h"
+#include "common.h"
 #include "debug.h"
 #include "test.h"
 #include "vm.h"
@@ -20,10 +20,11 @@ static void repl() {
       printf("\n");
       break;
     }
-    if (strlen(line) == 1) {
+    char *source = stripstring(line);
+    if (strlen(source) == 1) {
       continue;
     }
-    interpret(vm, line);
+    interpret(vm, source);
   }
 
   freeVM(vm);
@@ -77,13 +78,7 @@ static void runFile(const char *path) {
   freeVM(vm);
 }
 
-int main(int argc, char **argv) {
-  // testResetStack();
-  // testLongConst();
-  // testAdd();
-  // testArithmetics();
-  // testNegate();
-
+void testInterpreter(int argc, char **argv) {
   if (argc == 1) {
     repl();
   } else if (argc == 2) {
@@ -92,6 +87,16 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Usage: nrk [path/file.nrk]\n\n");
     exit(64);
   }
+}
+
+int main(int argc, char **argv) {
+  // testResetStack();
+  // testLongConst();
+  // testAdd();
+  // testArithmetics();
+  // testNegate();
+
+  testInterpreter(argc, argv);
 
   return 0;
 }

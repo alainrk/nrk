@@ -9,4 +9,6 @@
 #define DEBUG_PRINT_CODE
 #define DEBUG_TRACE_EXECUTION
 
+char *stripstring(const char *input);
+
 #endif
