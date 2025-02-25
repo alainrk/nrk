@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "chunk.h"
 #include "debug.h"
@@ -18,6 +19,9 @@ static void repl() {
     if (!fgets(line, sizeof(line), stdin)) {
       printf("\n");
       break;
+    }
+    if (strlen(line) == 1) {
+      continue;
     }
     interpret(vm, line);
   }
