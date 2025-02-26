@@ -2,7 +2,6 @@
 #include "chunk.h"
 #include "common.h"
 #include "scanner.h"
-#include "vm.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,10 +9,6 @@
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
 #endif
-
-// TODO: Probably in this file we're passing around too many parameters. I could
-// simply pass around the parser (and maybe something else), and get what I need
-// from there.
 
 ParseRule rules[] = {
     [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
@@ -140,7 +135,6 @@ static void emitConstant(Parser *parser, Chunk *chunk, Value v) {
     return;
   }
 
-  // TODO: Check if at most storable in 3 bytes
   if (idx > 0x00FFFFFE) {
     error(parser, "Too many constants in one chunk.");
     return;
@@ -305,7 +299,7 @@ static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
 }
 
 // Returns true is the parser haven't had any error.
-bool compile(VM *vm, const char *source, Chunk *chunk) {
+bool compile(const char *source, Chunk *chunk) {
   Scanner *scanner = initScanner(source);
   Parser parser;
 

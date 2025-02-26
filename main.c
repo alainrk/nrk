@@ -20,10 +20,13 @@ static void repl() {
       printf("\n");
       break;
     }
+
     char *source = stripstring(line);
+
     if (strlen(source) == 1) {
       continue;
     }
+
     interpret(vm, source);
   }
 

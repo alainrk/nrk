@@ -9,6 +9,10 @@
 #define DEBUG_PRINT_CODE
 #define DEBUG_TRACE_EXECUTION
 
+// For intentionally unused parameters (e.g. ParseFn funcs have to have all the
+// same signatures)
+#define UNUSED(x) (void)(x)
+
 char *stripstring(const char *input);
 
 #endif

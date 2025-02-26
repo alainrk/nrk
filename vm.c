@@ -145,7 +145,6 @@ static InterpretResult run(VM *vm) {
 #undef BINARY_OP
 }
 
-// TODO: Remove after tests
 InterpretResult interpretChunk(VM *vm, Chunk *chunk) {
   vm->chunk = chunk;
   vm->ip = vm->chunk->code;
@@ -157,7 +156,7 @@ InterpretResult interpret(VM *vm, const char *source) {
   Chunk chunk;
   initChunk(&chunk);
 
-  if (!compile(vm, source, &chunk)) {
+  if (!compile(source, &chunk)) {
     freeChunk(&chunk);
     return INTERPRET_COMPILE_ERROR;
   }

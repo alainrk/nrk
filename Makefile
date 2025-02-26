@@ -3,6 +3,7 @@
 # Compiler settings
 CC = clang
 CFLAGS = -std=c99 -Wall -Wpointer-sign -Wextra -g
+# CFLAGS = -std=c99 -Wall -Wpointer-sign -Wextra -Wno-unused-parameter -g
 
 # Project files
 SRCS = $(wildcard *.c)

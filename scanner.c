@@ -308,15 +308,6 @@ Token templateString(Scanner *scanner) {
       return makeToken(scanner, TOKEN_TEMPL_INTERP_START);
     }
 
-    // NOTE: Since I'm in scanner->inTemplate == false, I'll be in the scanner
-    // loop, so I'll have to consume it there.
-    //
-    // if (peek(scanner) == '}' && scanner->templateNesting > 0) {
-    //   advance(scanner); // }
-    //   scanner->templateNesting--;
-    //   return makeToken(scanner, TOKEN_TEMPL_INTERP_END);
-    // }
-
     if (peek(scanner) == '\n') {
       scanner->line++;
     }
