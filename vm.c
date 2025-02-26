@@ -31,14 +31,6 @@ void resetStack(VM *vm) {
 
   // Position the top of the stack at its beginning (first empty element)
   vm->stackTop = vm->stack;
-
-  // #ifdef DEBUG_TRACE_EXECUTION
-  //   printf("== stack resetted ==\n[ ");
-  //   for (Value *v = vm->stack; v < vm->stackTop; v++) {
-  //     printValue(*v, "", ", ");
-  //   }
-  //   printf("]\n=================\n");
-  // #endif
 }
 
 void push(VM *vm, Value value) {

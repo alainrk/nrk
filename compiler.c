@@ -53,6 +53,49 @@ ParseRule rules[] = {
     [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
 };
 
+const char *precedenceTypeToString(Precedence type) {
+  switch (type) {
+  case PREC_NONE:
+    return "PREC_NONE";
+    break;
+  case PREC_ASSIGNMENT:
+    return "PREC_ASSIGNMENT";
+    break;
+  case PREC_OR:
+    return "PREC_OR";
+    break;
+  case PREC_AND:
+    return "PREC_AND";
+    break;
+  case PREC_EQUALITY:
+    return "PREC_EQUALITY";
+    break;
+  case PREC_COMPARISON:
+    return "PREC_COMPARISON";
+    break;
+  case PREC_TERM:
+    return "PREC_TERM";
+    break;
+  case PREC_FACTOR:
+    return "PREC_FACTOR";
+    break;
+  case PREC_UNARY:
+    return "PREC_UNARY";
+    break;
+  case PREC_CALL:
+    return "PREC_CALL";
+    break;
+  case PREC_PRIMARY:
+    return "PREC_PRIMARY";
+    break;
+  default: {
+    static char buffer[32];
+    snprintf(buffer, sizeof(buffer), "UNKNOWN_PRECEDENCE(%d)", type);
+    return buffer;
+  }
+  }
+}
+
 static Chunk *currentChunk(Chunk *chunk) { return chunk; }
 
 static void errorAt(Parser *parser, Token *token, const char *message) {
@@ -171,6 +214,11 @@ static void emitConstant(Parser *parser, Chunk *chunk, Value v) {
 //
 static void parsePrecedence(Scanner *scanner, Parser *parser,
                             Precedence precedence, Chunk *chunk) {
+#ifdef DEBUG_COMPILE_EXECUTION
+  printf("===== parsePrecedence(%s) =====\n",
+         precedenceTypeToString(precedence));
+#endif
+
   advance(scanner, parser);
 
   // The first token must always be part of a prefix operation, by definition.
@@ -189,6 +237,10 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
     ParseFn infixRule = getRule(parser->prev.type)->infix;
     infixRule(scanner, parser, chunk);
   }
+
+#ifdef DEBUG_COMPILE_EXECUTION
+  printf("=== end parsePrecedence() ===\n");
+#endif
 }
 
 static void endCompiler(Parser *parser, Chunk *chunk) {
@@ -260,12 +312,26 @@ static void binary(Scanner *scanner, Parser *parser, Chunk *chunk) {
 }
 
 static void expression(Scanner *scanner, Parser *parser, Chunk *chunk) {
+#ifdef DEBUG_COMPILE_EXECUTION
+  printf("===== expression() =====\n");
+#endif
+
   // This way we parse all the possible expression, being ASSIGNMENT the lowest.
   parsePrecedence(scanner, parser, PREC_ASSIGNMENT, chunk);
+
+#ifdef DEBUG_COMPILE_EXECUTION
+  printf("=== end expression() ===\n");
+#endif
 }
 
 // Prefix expression: We assume "(" has already been consumed.
 static void grouping(Scanner *scanner, Parser *parser, Chunk *chunk) {
+
+#ifdef DEBUG_COMPILE_EXECUTION
+  printf("== grouping() ==\n%s\n================\n",
+         tokenTypeToString(TOKEN_RIGHT_PAREN));
+#endif
+
   // This will generate all the necessary bytecode needed to evaluate the
   // expression.
   expression(scanner, parser, chunk);
@@ -275,6 +341,10 @@ static void grouping(Scanner *scanner, Parser *parser, Chunk *chunk) {
 // Prefix expression: We assume "(" has already been consumed.
 static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
   TokenType t = parser->prev.type;
+
+#ifdef DEBUG_COMPILE_EXECUTION
+  printf("== unary() ==\n%s\n=============\n", tokenTypeToString(t));
+#endif
 
   // Compile the operand.
   parsePrecedence(scanner, parser, PREC_UNARY, chunk);
@@ -295,11 +365,20 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
 
 static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
   double v = strtod(parser->prev.start, NULL);
+
+#ifdef DEBUG_COMPILE_EXECUTION
+  printf("== number() ==\n%.2f\n==============\n", v);
+#endif
+
   emitConstant(parser, currentChunk(chunk), v);
 }
 
 // Returns true is the parser haven't had any error.
 bool compile(const char *source, Chunk *chunk) {
+#ifdef DEBUG_COMPILE_EXECUTION
+  printf("======= compile start() =======\n");
+#endif
+
   Scanner *scanner = initScanner(source);
   Parser parser;
 
@@ -310,6 +389,10 @@ bool compile(const char *source, Chunk *chunk) {
   expression(scanner, &parser, chunk);
   consume(scanner, &parser, TOKEN_EOF, "Expect end of expression.");
   endCompiler(&parser, chunk);
+
+#ifdef DEBUG_COMPILE_EXECUTION
+  printf("======== compile end() ========\n");
+#endif
 
   return !parser.hadError;
 }
