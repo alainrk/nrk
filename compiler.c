@@ -10,7 +10,7 @@
 #include "debug.h"
 #endif
 
-static int debugIndent = 0;
+int debugIndent = 0;
 
 ParseRule rules[] = {
     [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
@@ -157,15 +157,30 @@ static void consume(Scanner *scanner, Parser *parser, TokenType type,
 }
 
 static void emitBytes(Parser *parser, Chunk *chunk, int count, ...) {
+#ifdef DEBUG_COMPILE_EXECUTION
+  debugIndent++;
+  printf("%semitBytes(%d) = ", strfromnchars('\t', debugIndent), count);
+#endif
+
   va_list args;
   va_start(args, count);
 
   for (int i = 0; i < count; i++) {
     u_int8_t byte = (u_int8_t)va_arg(args, int);
+
+#ifdef DEBUG_COMPILE_EXECUTION
+    printf("%x ", byte);
+#endif
+
     writeChunk(currentChunk(chunk), byte, parser->prev.line);
   }
 
   va_end(args);
+
+#ifdef DEBUG_COMPILE_EXECUTION
+  printf("\n");
+  debugIndent--;
+#endif
 }
 
 static void emitReturn(Parser *parser, Chunk *chunk) {
@@ -225,20 +240,32 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
   advance(scanner, parser);
 
   // The first token must always be part of a prefix operation, by definition.
-  ParseFn prefixRule = getRule(parser->prev.type)->prefix;
-  if (prefixRule == NULL) {
+  ParseRule *rule = getRule(parser->prev.type);
+  if (rule->prefix == NULL) {
     error(parser, "Expect expression");
     return;
   }
 
-  prefixRule(scanner, parser, chunk);
+#ifdef DEBUG_COMPILE_EXECUTION
+  printf("%sprefixRule for precedence = %s\n", strfromnchars('\t', debugIndent),
+         precedenceTypeToString(rule->precedence));
+#endif
+
+  rule->prefix(scanner, parser, chunk);
 
   // If there is some infix rule, the prefix above might an operand of it.
   // Go ahead until, and only if, the precedence allows it.
   while (precedence <= getRule(parser->curr.type)->precedence) {
     advance(scanner, parser);
-    ParseFn infixRule = getRule(parser->prev.type)->infix;
-    infixRule(scanner, parser, chunk);
+    ParseRule *r = getRule(parser->prev.type);
+
+#ifdef DEBUG_COMPILE_EXECUTION
+    printf("%sinfixRule for precedence = %s\n",
+           strfromnchars('\t', debugIndent),
+           precedenceTypeToString(r->precedence));
+#endif
+
+    r->infix(scanner, parser, chunk);
   }
 
 #ifdef DEBUG_COMPILE_EXECUTION
@@ -389,7 +416,8 @@ static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
 // Returns true is the parser haven't had any error.
 bool compile(const char *source, Chunk *chunk) {
 #ifdef DEBUG_COMPILE_EXECUTION
-  printf("======= compile start() =======\n");
+  debugIndent = 0;
+  printf("======= compile start() =======\n\n");
 #endif
 
   Scanner *scanner = initScanner(source);
@@ -404,7 +432,7 @@ bool compile(const char *source, Chunk *chunk) {
   endCompiler(&parser, chunk);
 
 #ifdef DEBUG_COMPILE_EXECUTION
-  printf("======== compile end() ========\n");
+  printf("\n======== compile end() ========\n\n");
 #endif
 
   return !parser.hadError;
