@@ -21,7 +21,7 @@ The language currently supports:
 
 Additional custom features implemented in `nrk`:
 
-- Template (and nested!) strings (<code>`This is a ${${"nested"} str}} with ${1+1} levels of nesting.`</code>)
+- Template (and nested!) strings (`` ` This is a ${${"nested"} str}} with ${1+1} levels of nesting. ` ``)
 - Extended constant pool (via `OP_CONSTANT_LONG` for more than 256 constants)
 
 ## Project Structure
