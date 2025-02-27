@@ -1,10 +1,7 @@
-# nrk Programming Language
+# NRK Programming Language
 
-A bytecode interpreter implementation inspired by Bob Nystrom's ["Crafting Interpreters"](https://craftinginterpreters.com/).
-
-## Overview
-
-`nrk` is a small programming language with a bytecode virtual machine written in C. This project follows the implementation described in the book "Crafting Interpreters", with some custom modifications and enhancements.
+**nrk** (`/ˈanɑːrki/`) is a small programming language with a bytecode interpreter implementation written entirely in C99.
+The language is inspired by Bob Nystrom's ["Crafting Interpreters"](https://craftinginterpreters.com/) with modifications and enhancements.
 
 ## Features
 
@@ -21,7 +18,10 @@ The language currently supports:
 - Basic arithmetic operations (`+`, `-`, `*`, `/`)
 - Numeric literals
 - Unary negation
-- Parenthesized expressions
+
+Additional custom features implemented in `nrk`:
+
+- Template (and nested!) strings (`This is a ${${"nested"} str}} with ${1+1} levels of nesting.`)
 - Extended constant pool (via `OP_CONSTANT_LONG` for more than 256 constants)
 
 ## Project Structure
@@ -43,7 +43,7 @@ The language currently supports:
 ### Build
 
 ```bash
-make
+make all
 ```
 
 ### Run the REPL
@@ -61,13 +61,13 @@ make
 ## Example Code
 
 ```
-1 + 2 * 3
+1 + 2 * (3 + 4) / 5
 ```
 
 Will produce:
 
 ```
-7
+3.8
 ```
 
 ## Development Status
