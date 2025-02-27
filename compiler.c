@@ -12,6 +12,12 @@
 
 int debugIndent = 0;
 
+static void grouping(Scanner *scanner, Parser *parser, Chunk *chunk);
+static void unary(Scanner *scanner, Parser *parser, Chunk *chunk);
+static void binary(Scanner *scanner, Parser *parser, Chunk *chunk);
+static void number(Scanner *scanner, Parser *parser, Chunk *chunk);
+static ParseRule *getRule(TokenType type);
+
 ParseRule rules[] = {
     [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
@@ -231,6 +237,7 @@ static void emitConstant(Parser *parser, Chunk *chunk, Value v) {
 //
 static void parsePrecedence(Scanner *scanner, Parser *parser,
                             Precedence precedence, Chunk *chunk) {
+  UNUSED(scanner);
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
   printf("%sparsePrecedence(%s)\n", strfromnchars('\t', debugIndent),
@@ -402,6 +409,8 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
 }
 
 static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
+  UNUSED(scanner);
+
   double v = strtod(parser->prev.start, NULL);
 
 #ifdef DEBUG_COMPILE_EXECUTION

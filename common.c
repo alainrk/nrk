@@ -1,4 +1,5 @@
 #include "common.h"
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -55,7 +56,7 @@ char *strfromnchars(const char c, size_t n) {
   if (result == NULL) {
     return NULL;
   }
-  for (int i = 0; i < n; i++) {
+  for (size_t i = 0; i < n; i++) {
     result[i] = c;
   }
   result[n] = '\0';
