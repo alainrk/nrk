@@ -49,3 +49,15 @@ char *stripstring(const char *input) {
 
   return result;
 }
+
+char *strfromnchars(const char c, size_t n) {
+  char *result = malloc(n + 1);
+  if (result == NULL) {
+    return NULL;
+  }
+  for (int i = 0; i < n; i++) {
+    result[i] = c;
+  }
+  result[n] = '\0';
+  return result;
+}

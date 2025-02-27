@@ -10,6 +10,8 @@
 #include "debug.h"
 #endif
 
+static int debugIndent = 0;
+
 ParseRule rules[] = {
     [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
@@ -215,7 +217,8 @@ static void emitConstant(Parser *parser, Chunk *chunk, Value v) {
 static void parsePrecedence(Scanner *scanner, Parser *parser,
                             Precedence precedence, Chunk *chunk) {
 #ifdef DEBUG_COMPILE_EXECUTION
-  printf("===== parsePrecedence(%s) =====\n",
+  debugIndent++;
+  printf("%sparsePrecedence(%s)\n", strfromnchars('\t', debugIndent),
          precedenceTypeToString(precedence));
 #endif
 
@@ -239,7 +242,8 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
   }
 
 #ifdef DEBUG_COMPILE_EXECUTION
-  printf("=== end parsePrecedence() ===\n");
+  printf("%s end parsePrecedence()\n", strfromnchars('\t', debugIndent));
+  debugIndent--;
 #endif
 }
 
@@ -313,14 +317,16 @@ static void binary(Scanner *scanner, Parser *parser, Chunk *chunk) {
 
 static void expression(Scanner *scanner, Parser *parser, Chunk *chunk) {
 #ifdef DEBUG_COMPILE_EXECUTION
-  printf("===== expression() =====\n");
+  debugIndent++;
+  printf("%sexpression()\n", strfromnchars('\t', debugIndent));
 #endif
 
   // This way we parse all the possible expression, being ASSIGNMENT the lowest.
   parsePrecedence(scanner, parser, PREC_ASSIGNMENT, chunk);
 
 #ifdef DEBUG_COMPILE_EXECUTION
-  printf("=== end expression() ===\n");
+  printf("%send expression()\n", strfromnchars('\t', debugIndent));
+  debugIndent--;
 #endif
 }
 
@@ -328,8 +334,10 @@ static void expression(Scanner *scanner, Parser *parser, Chunk *chunk) {
 static void grouping(Scanner *scanner, Parser *parser, Chunk *chunk) {
 
 #ifdef DEBUG_COMPILE_EXECUTION
-  printf("== grouping() ==\n%s\n================\n",
+  debugIndent++;
+  printf("%sgrouping(%s)\n", strfromnchars('\t', debugIndent),
          tokenTypeToString(TOKEN_RIGHT_PAREN));
+  debugIndent--;
 #endif
 
   // This will generate all the necessary bytecode needed to evaluate the
@@ -343,7 +351,10 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
   TokenType t = parser->prev.type;
 
 #ifdef DEBUG_COMPILE_EXECUTION
-  printf("== unary() ==\n%s\n=============\n", tokenTypeToString(t));
+  debugIndent++;
+  printf("%sunary(%s)\n", strfromnchars('\t', debugIndent),
+         tokenTypeToString(t));
+  debugIndent--;
 #endif
 
   // Compile the operand.
@@ -367,7 +378,9 @@ static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
   double v = strtod(parser->prev.start, NULL);
 
 #ifdef DEBUG_COMPILE_EXECUTION
-  printf("== number() ==\n%.2f\n==============\n", v);
+  debugIndent++;
+  printf("%snumber(%.2f)\n", strfromnchars('\t', debugIndent), v);
+  debugIndent--;
 #endif
 
   emitConstant(parser, currentChunk(chunk), v);
