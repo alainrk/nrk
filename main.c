@@ -3,35 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "common.h"
-#include "debug.h"
-#include "test.h"
+#include "repl.h"
 #include "vm.h"
-
-static void repl() {
-  VM *vm = initVM();
-
-  printf("\nWelcome to nrk v0.0.1.\n");
-
-  for (;;) {
-    printf("> ");
-    char line[1024];
-    if (!fgets(line, sizeof(line), stdin)) {
-      printf("\n");
-      break;
-    }
-
-    char *source = stripstring(line);
-
-    if (strlen(source) == 1) {
-      continue;
-    }
-
-    interpret(vm, source);
-  }
-
-  freeVM(vm);
-}
 
 static char *readFile(const char *path) {
   FILE *file = fopen(path, "rb");
