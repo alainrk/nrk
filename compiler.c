@@ -2,6 +2,7 @@
 #include "chunk.h"
 #include "common.h"
 #include "scanner.h"
+#include "value.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -419,7 +420,7 @@ static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
   debugIndent--;
 #endif
 
-  emitConstant(parser, currentChunk(chunk), v);
+  emitConstant(parser, currentChunk(chunk), NUMBER_VAL(v));
 }
 
 // Returns true is the parser haven't had any error.
