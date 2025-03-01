@@ -255,7 +255,8 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
   }
 
 #ifdef DEBUG_COMPILE_EXECUTION
-  printf("%sprefixRule for precedence = %s\n", strfromnchars('\t', debugIndent),
+  printf("%sprefixRule for %s has precedence = %s\n",
+         strfromnchars('\t', debugIndent), tokenTypeToString(parser->prev.type),
          precedenceTypeToString(rule->precedence));
 #endif
 
@@ -268,8 +269,9 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
     ParseRule *r = getRule(parser->prev.type);
 
 #ifdef DEBUG_COMPILE_EXECUTION
-    printf("%sinfixRule for precedence = %s\n",
+    printf("%sinfixRule for %s has precedence = %s\n",
            strfromnchars('\t', debugIndent),
+           tokenTypeToString(parser->prev.type),
            precedenceTypeToString(r->precedence));
 #endif
 
