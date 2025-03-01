@@ -48,19 +48,19 @@ Additional custom features implemented in `nrk`:
 
 ### Build
 
-```bash
+```sh
 make all
 ```
 
 ### Run the REPL
 
-```bash
+```sh
 ./main
 ```
 
 ### Run a File
 
-```bash
+```sh
 ./main path/to/script.nrk
 ```
 
@@ -74,10 +74,10 @@ Calculations:
 
 Boolean operations:
 
-```
+```go
 !true // false
-!!0 // false (cast to boolean)
-!nil // true (falsey values = 0, false, nil)
+!!0   // false (cast to boolean)
+!nil  // true (falsey values = 0, false, nil)
 ```
 
 ## Development Status
