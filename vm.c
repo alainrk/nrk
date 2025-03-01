@@ -6,6 +6,8 @@
 #include "memory.h"
 #include "value.h"
 #include <arpa/inet.h>
+#include <stdarg.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,7 +54,22 @@ Value pop(VM *vm) {
   return *vm->stackTop;
 }
 
-static void runtimeError(char *err) { return; }
+// Report an error to the user and reset the stack as it is invalidated.
+static void runtimeError(VM *vm, const char *format, ...) {
+  va_list(args);
+  va_start(args, format);
+  vfprintf(stderr, format, args);
+  va_end(args);
+  fputs("\n", stderr);
+
+  // We take the "previous" instruction as we've already advanced.
+  size_t instruction = vm->ip - vm->chunk->code - 1;
+
+  fprintf(stderr, "[Line %d] in script\n",
+          getInstructionLine(vm->chunk, instruction));
+
+  resetStack(vm);
+}
 
 // Returns the value on the stack at the given distance.
 // Returns the top of the stack if dist is 0.
@@ -97,7 +114,7 @@ static InterpretResult run(VM *vm) {
     }
     case OP_NEGATE: {
       if (!IS_NUMBER(peek(vm, 0))) {
-        runtimeError("Operand must be a number");
+        runtimeError(vm, "Operand must be a number");
         return INTERPRET_RUNTIME_ERROR;
       }
       vm->stackTop[-1].as.number = -peek(vm, 0).as.number;
