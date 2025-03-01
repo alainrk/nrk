@@ -34,6 +34,7 @@ typedef enum {
   OP_NIL,
   OP_TRUE,
   OP_FALSE,
+  OP_NOT,
   OP_RETURN
 } OpCode;
 

@@ -168,6 +168,14 @@ static InterpretResult run(VM *vm) {
       push(vm, BOOL_VAL(false));
       break;
     }
+    case OP_NOT: {
+      if (!IS_BOOL(peek(vm, 0))) {
+        runtimeError(vm, "Operand must be a boolean");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      vm->stackTop[-1].as.boolean = !peek(vm, 0).as.boolean;
+      break;
+    }
     }
   }
 

@@ -32,7 +32,7 @@ ParseRule rules[] = {
     [TOKEN_SEMICOLON] = {NULL, NULL, PREC_NONE},
     [TOKEN_SLASH] = {NULL, binary, PREC_FACTOR},
     [TOKEN_STAR] = {NULL, binary, PREC_FACTOR},
-    [TOKEN_BANG] = {NULL, NULL, PREC_NONE},
+    [TOKEN_BANG] = {unary, NULL, PREC_NONE},
     [TOKEN_BANG_EQUAL] = {NULL, NULL, PREC_NONE},
     [TOKEN_EQUAL] = {NULL, NULL, PREC_NONE},
     [TOKEN_EQUAL_EQUAL] = {NULL, NULL, PREC_NONE},
@@ -405,6 +405,9 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
     // at a certain precedence level or higher.
   case TOKEN_MINUS:
     emitBytes(parser, currentChunk(chunk), 1, OP_NEGATE);
+    break;
+  case TOKEN_BANG:
+    emitBytes(parser, currentChunk(chunk), 1, OP_NOT);
     break;
   // Unreachable case
   default:
