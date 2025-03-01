@@ -85,11 +85,15 @@ static InterpretResult run(VM *vm) {
 #define READ_CONSTANT_LONG()                                                   \
   (vm->chunk->constants.values[GET_CONSTANT_LONG_ID(                           \
       vm->chunk, (int)(vm->ip - vm->chunk->code - 1))])
-#define BINARY_OP(op)                                                          \
+#define BINARY_OP(valueType, op)                                               \
   do {                                                                         \
-    double b = pop(vm);                                                        \
-    double a = pop(vm);                                                        \
-    push(vm, a op b);                                                          \
+    if (!IS_NUMBER(peek(vm, 0)) || !IS_NUMBER(peek(vm, 1))) {                  \
+      runtimeError(vm, "Operands must be numbers.");                           \
+      return INTERPRET_RUNTIME_ERROR;                                          \
+    }                                                                          \
+    double b = AS_NUMBER(pop(vm));                                             \
+    double a = AS_NUMBER(pop(vm));                                             \
+    push(vm, valueType(a op b));                                               \
   } while (false)
 
   // Decode and dispatch loop
@@ -121,19 +125,19 @@ static InterpretResult run(VM *vm) {
       break;
     }
     case OP_ADD: {
-      // BINARY_OP(+);
+      BINARY_OP(NUMBER_VAL, +);
       break;
     }
     case OP_SUBTRACT: {
-      // BINARY_OP(-);
+      BINARY_OP(NUMBER_VAL, -);
       break;
     }
     case OP_MULTIPLY: {
-      // BINARY_OP(*);
+      BINARY_OP(NUMBER_VAL, *);
       break;
     }
     case OP_DIVIDE: {
-      // BINARY_OP(/);
+      BINARY_OP(NUMBER_VAL, /);
       break;
     }
     case OP_RETURN: {
@@ -150,6 +154,18 @@ static InterpretResult run(VM *vm) {
       push(vm, constant);
       MOVE_BYTES(3);
       printValue(constant, "---------\tRun OP_CONSTANT_LONG: ", "\n");
+      break;
+    }
+    case OP_NIL: {
+      push(vm, NIL_VAL);
+      break;
+    }
+    case OP_TRUE: {
+      push(vm, BOOL_VAL(true));
+      break;
+    }
+    case OP_FALSE: {
+      push(vm, BOOL_VAL(false));
       break;
     }
     }

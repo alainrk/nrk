@@ -24,14 +24,17 @@ typedef enum {
   // Internal usage only operators
   __OP_STACK__RESET,
   // Available operators
-  OP_CONSTANT,
   OP_ADD,
   OP_SUBTRACT,
   OP_MULTIPLY,
   OP_DIVIDE,
   OP_NEGATE,
+  OP_CONSTANT,
   OP_CONSTANT_LONG,
-  OP_RETURN,
+  OP_NIL,
+  OP_TRUE,
+  OP_FALSE,
+  OP_RETURN
 } OpCode;
 
 typedef struct {

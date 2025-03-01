@@ -217,6 +217,7 @@ static TokenType checkKeyword(Scanner *scanner, int start, int length,
   return TOKEN_IDENTIFIER;
 }
 
+// Trie structure for keywords.
 static TokenType identifierType(Scanner *scanner) {
   switch (scanner->start[0]) {
   case 'a':

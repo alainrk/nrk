@@ -17,6 +17,7 @@ static void grouping(Scanner *scanner, Parser *parser, Chunk *chunk);
 static void unary(Scanner *scanner, Parser *parser, Chunk *chunk);
 static void binary(Scanner *scanner, Parser *parser, Chunk *chunk);
 static void number(Scanner *scanner, Parser *parser, Chunk *chunk);
+static void literal(Scanner *scanner, Parser *parser, Chunk *chunk);
 static ParseRule *getRule(TokenType type);
 
 ParseRule rules[] = {
@@ -45,17 +46,17 @@ ParseRule rules[] = {
     [TOKEN_AND] = {NULL, NULL, PREC_NONE},
     [TOKEN_CLASS] = {NULL, NULL, PREC_NONE},
     [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_FALSE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_FALSE] = {literal, NULL, PREC_NONE},
     [TOKEN_FOR] = {NULL, NULL, PREC_NONE},
     [TOKEN_FUN] = {NULL, NULL, PREC_NONE},
     [TOKEN_IF] = {NULL, NULL, PREC_NONE},
-    [TOKEN_NIL] = {NULL, NULL, PREC_NONE},
+    [TOKEN_NIL] = {literal, NULL, PREC_NONE},
     [TOKEN_OR] = {NULL, NULL, PREC_NONE},
     [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
     [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
     [TOKEN_SUPER] = {NULL, NULL, PREC_NONE},
     [TOKEN_THIS] = {NULL, NULL, PREC_NONE},
-    [TOKEN_TRUE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
     [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
     [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
@@ -407,6 +408,7 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
     break;
   // Unreachable case
   default:
+    error(parser, "Unexpected unary");
     return;
   }
 }
@@ -423,6 +425,32 @@ static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
 #endif
 
   emitConstant(parser, currentChunk(chunk), NUMBER_VAL(v));
+}
+
+static void literal(Scanner *scanner, Parser *parser, Chunk *chunk) {
+  UNUSED(scanner);
+
+#ifdef DEBUG_COMPILE_EXECUTION
+  debugIndent++;
+  printf("%sliteral(%s)\n", strfromnchars('\t', debugIndent),
+         tokenTypeToString(parser->prev.type));
+  debugIndent--;
+#endif
+
+  switch (parser->prev.type) {
+  case TOKEN_NIL:
+    emitBytes(parser, chunk, 1, OP_NIL);
+    break;
+  case TOKEN_TRUE:
+    emitBytes(parser, chunk, 1, OP_TRUE);
+    break;
+  case TOKEN_FALSE:
+    emitBytes(parser, chunk, 1, OP_FALSE);
+    break;
+  default:
+    error(parser, "Unexpected literal");
+    return;
+  }
 }
 
 // Returns true is the parser haven't had any error.

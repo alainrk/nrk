@@ -45,7 +45,7 @@ typedef struct {
 // Promotion from C values to nrk values.
 // Creates a tagged union with value and proper type.
 #define BOOL_VAL(value) ((Value){VAL_BOOL, {.boolean = value}})
-#define NIL_VAL(value) ((Value){VAL_NIL, {.number = 0}})
+#define NIL_VAL ((Value){VAL_NIL, {.number = 0}})
 #define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
 
 // The constant pool is an array of values.

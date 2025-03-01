@@ -26,5 +26,19 @@ void freeValueArray(ValueArray *array) {
 }
 
 void printValue(Value value, char *head, char *tail) {
-  printf("%s%g%s", head, AS_NUMBER(value), tail);
+  printf("%s", head);
+  switch (value.type) {
+  case VAL_NIL:
+    printf("nil");
+    break;
+  case VAL_BOOL:
+    printf("%s", AS_BOOL(value) ? "true" : "false");
+    break;
+  case VAL_NUMBER:
+    printf("%g", AS_NUMBER(value));
+    break;
+  default:
+    printf("printValue() not defined on given type");
+  }
+  printf("%s", tail);
 }
