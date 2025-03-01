@@ -4,6 +4,7 @@
 
 #include "chunk.h"
 #include "test.h"
+#include "value.h"
 #include "vm.h"
 
 void testResetStack() {
@@ -16,11 +17,11 @@ void testResetStack() {
 
   int numConst = 10;
   for (int i = 0; i < numConst; i++) {
-    writeConstant(&c, 666, 10);
+    writeConstant(&c, NUMBER_VAL(666), 10);
   }
 
   writeChunk(&c, __OP_STACK__RESET, 11);
-  writeConstant(&c, 42, 12);
+  writeConstant(&c, NUMBER_VAL(42), 12);
 
   // Return
   writeChunk(&c, OP_RETURN, 13);
@@ -47,11 +48,11 @@ void testLongConst() {
   for (int i = 0; i < numConst; i++) {
 
     uint8_t r = (uint8_t)rand();
-    writeConstant(&c, r, 10);
+    writeConstant(&c, NUMBER_VAL(r), 10);
   }
 
   // Negate
-  writeConstant(&c, 42, 1);
+  writeConstant(&c, NUMBER_VAL(42), 1);
   writeChunk(&c, OP_NEGATE, 1);
 
   // Return
@@ -74,8 +75,8 @@ void testAdd() {
   Chunk c;
   initChunk(&c);
 
-  writeConstant(&c, 5.12, 10);
-  writeConstant(&c, 12.345, 10);
+  writeConstant(&c, NUMBER_VAL(5.23), 10);
+  writeConstant(&c, NUMBER_VAL(5.4), 10);
 
   writeChunk(&c, OP_ADD, 10);
 
@@ -99,14 +100,14 @@ void testArithmetics() {
   Chunk c;
   initChunk(&c);
 
-  writeConstant(&c, 2, 10);
-  writeConstant(&c, 5, 10);
+  writeConstant(&c, NUMBER_VAL(2), 10);
+  writeConstant(&c, NUMBER_VAL(5), 10);
   writeChunk(&c, OP_ADD, 10);
 
-  writeConstant(&c, 3, 10);
+  writeConstant(&c, NUMBER_VAL(3), 10);
   writeChunk(&c, OP_MULTIPLY, 10);
 
-  writeConstant(&c, 2, 10);
+  writeConstant(&c, NUMBER_VAL(3), 10);
   writeChunk(&c, OP_DIVIDE, 10);
 
   // Return
@@ -130,7 +131,7 @@ void testNegate() {
   initChunk(&c);
 
   for (int i = 1; i < 998; i++) {
-    writeConstant(&c, i, i);
+    writeConstant(&c, NUMBER_VAL(i), i);
     writeChunk(&c, OP_NEGATE, i);
   }
 

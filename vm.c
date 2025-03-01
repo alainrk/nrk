@@ -52,6 +52,12 @@ Value pop(VM *vm) {
   return *vm->stackTop;
 }
 
+static void runtimeError(char *err) { return; }
+
+// Returns the value on the stack at the given distance.
+// Returns the top of the stack if dist is 0.
+static Value peek(VM *vm, int dist) { return vm->stackTop[-1 - dist]; }
+
 // Better and faster way are writing ASM or using non standard C lib
 // To keep things simple we use a switch statement
 static InterpretResult run(VM *vm) {
@@ -90,25 +96,27 @@ static InterpretResult run(VM *vm) {
       break;
     }
     case OP_NEGATE: {
-      *(vm->stackTop - 1) = -*(vm->stackTop - 1);
-      // Alternatively, pop and push
-      // push(vm, -pop(vm));
+      if (!IS_NUMBER(peek(vm, 0))) {
+        runtimeError("Operand must be a number");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      vm->stackTop[-1].as.number = -peek(vm, 0).as.number;
       break;
     }
     case OP_ADD: {
-      BINARY_OP(+);
+      // BINARY_OP(+);
       break;
     }
     case OP_SUBTRACT: {
-      BINARY_OP(-);
+      // BINARY_OP(-);
       break;
     }
     case OP_MULTIPLY: {
-      BINARY_OP(*);
+      // BINARY_OP(*);
       break;
     }
     case OP_DIVIDE: {
-      BINARY_OP(/);
+      // BINARY_OP(/);
       break;
     }
     case OP_RETURN: {
