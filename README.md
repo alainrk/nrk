@@ -18,11 +18,17 @@ The language currently supports:
 - Basic arithmetic operations (`+`, `-`, `*`, `/`)
 - Numeric literals
 - Unary negation
+- Boolean values (`true`, `false`)
+- Logical negation (`!`)
+- `nil` value
+- Type checking for operations
 
 Additional custom features implemented in `nrk`:
 
 - Template (and nested!) strings (`` `This is a ${${"nested"} str}} with ${1+1} levels of nesting.` ``)
 - Extended constant pool (via `OP_CONSTANT_LONG` for more than 256 constants)
+- Tagged value representation (numbers, booleans, nil)
+- Runtime type checking
 
 ## Project Structure
 
@@ -30,7 +36,7 @@ Additional custom features implemented in `nrk`:
 - **Compiler**: Turns source code into bytecode
 - **Scanner**: Tokenizes source code for the compiler
 - **Chunk**: Represents bytecode and related metadata
-- **Value**: Represents runtime values (currently double-precision floating point)
+- **Value**: Represents runtime values (numbers, booleans, nil)
 - **Debug**: Tools for inspecting bytecode and execution
 
 ## Building and Running
@@ -60,19 +66,23 @@ make all
 
 ## Example Code
 
-```
-1 + 2 * (3 + 4) / 5
+Calculations:
+
+```c
+1 + 2 * (3 + 4) / 5 // => 3.8
 ```
 
-Will produce:
+Boolean operations:
 
 ```
-3.8
+!true // false
+!!0 // false (cast to boolean)
+!nil // true (falsey values = 0, false, nil)
 ```
 
 ## Development Status
 
-`nrk` is currently in early development. The focus has been on implementing the core bytecode VM, scanner, and compiler for arithmetic expressions. Future plans include:
+`nrk` is currently in early development. The focus has been on implementing the core bytecode VM, scanner, and compiler for expressions. Future plans include:
 
 - Variables and assignment
 - String support and operations
