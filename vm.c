@@ -75,6 +75,12 @@ static void runtimeError(VM *vm, const char *format, ...) {
 // Returns the top of the stack if dist is 0.
 static Value peek(VM *vm, int dist) { return vm->stackTop[-1 - dist]; }
 
+// Returns true is the value is nil, false or 0.
+static bool isFalsey(Value v) {
+  return IS_NIL(v) ||
+         ((IS_BOOL(v) && !AS_BOOL(v)) || (IS_NUMBER(v) && AS_NUMBER(v) == 0));
+}
+
 // Better and faster way are writing ASM or using non standard C lib
 // To keep things simple we use a switch statement
 static InterpretResult run(VM *vm) {
@@ -169,11 +175,7 @@ static InterpretResult run(VM *vm) {
       break;
     }
     case OP_NOT: {
-      if (!IS_BOOL(peek(vm, 0))) {
-        runtimeError(vm, "Operand must be a boolean");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-      vm->stackTop[-1].as.boolean = !peek(vm, 0).as.boolean;
+      vm->stackTop[-1] = BOOL_VAL(isFalsey(peek(vm, 0)));
       break;
     }
     }
