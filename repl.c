@@ -49,6 +49,41 @@ static void add_history(const char *line) {
   history.current = history.count;
 }
 
+// Refreshes the line on screen based on the current cursor position
+static void refresh_line(const char *line, int len, int pos) {
+  char buf[LINE_MAX + 20];
+  int idx = 0;
+
+  // First go to left edge
+  buf[idx++] = '\r';
+
+  // Write prompt
+  buf[idx++] = '>';
+  buf[idx++] = ' ';
+
+  // Write current buffer content
+  memcpy(buf + idx, line, len);
+  idx += len;
+
+  // Erase to the right of the cursor
+  buf[idx++] = '\x1b';
+  buf[idx++] = '[';
+  buf[idx++] = 'K';
+
+  // Move cursor to the right position
+  buf[idx++] = '\r'; // Back to start
+  buf[idx++] = '>';  // Prompt
+  buf[idx++] = ' ';  // Space after prompt
+
+  // Move cursor forward to pos
+  if (pos > 0) {
+    memcpy(buf + idx, line, pos);
+    idx += pos;
+  }
+
+  write(STDOUT_FILENO, buf, idx);
+}
+
 void repl() {
   VM *vm = initVM();
   printf("\nWelcome to nrk v0.0.1.\n");
@@ -63,6 +98,7 @@ void repl() {
     fflush(stdout);
 
     int pos = 0;
+    int len = 0;
     memset(line, 0, sizeof(line));
 
     while (true) {
@@ -84,35 +120,44 @@ void repl() {
             if (seq[1] == 'A') { // Up arrow
               if (history.current > 0) {
                 // Clear current line
-                while (pos > 0) {
-                  printf("\b \b");
-                  pos--;
-                }
+                pos = 0;
+                len = 0;
+                line[0] = '\0';
 
                 history.current--;
                 strcpy(line, history.entries[history.current]);
-                printf("%s", line);
-                fflush(stdout); // Force display
-                pos = strlen(line);
+                len = strlen(line);
+                pos = len;
+                refresh_line(line, len, pos);
               }
             } else if (seq[1] == 'B') { // Down arrow
               if (history.current < history.count) {
                 // Clear current line
-                while (pos > 0) {
-                  printf("\b \b");
-                  pos--;
-                }
+                pos = 0;
+                len = 0;
+                line[0] = '\0';
 
                 history.current++;
                 if (history.current < history.count) {
                   strcpy(line, history.entries[history.current]);
-                  printf("%s", line);
-                  fflush(stdout); // Force display
-                  pos = strlen(line);
+                  len = strlen(line);
+                  pos = len;
                 } else {
                   // Clear the line when pressing down at the end of history
                   line[0] = '\0';
+                  len = 0;
                 }
+                refresh_line(line, len, pos);
+              }
+            } else if (seq[1] == 'C') { // Right arrow
+              if (pos < len) {
+                pos++;
+                refresh_line(line, len, pos);
+              }
+            } else if (seq[1] == 'D') { // Left arrow
+              if (pos > 0) {
+                pos--;
+                refresh_line(line, len, pos);
               }
             }
           }
@@ -122,16 +167,23 @@ void repl() {
         } else if (c == 127 ||
                    c == '\b') { // Backspace (127 is DEL, '\b' is Ctrl+H)
           if (pos > 0) {
-            line[--pos] = '\0';
-            // Move cursor back, print space, move cursor back again
-            printf("\b \b");
-            // Make sure it's displayed immediately
-            fflush(stdout);
+            // Remove the character at pos-1 by shifting everything after it
+            memmove(&line[pos - 1], &line[pos], len - pos + 1);
+            pos--;
+            len--;
+            line[len] = '\0'; // Ensure null termination
+            refresh_line(line, len, pos);
           }
-        } else if (pos < sizeof(line) - 1) {
-          line[pos++] = c;
-          printf("%c", c); // Make sure to echo the character
-          fflush(stdout);  // Flush to ensure immediate display
+        } else if (len < sizeof(line) - 1) {
+          // Insert character at current position
+          if (pos < len) {
+            // Make room for the new character
+            memmove(&line[pos + 1], &line[pos], len - pos + 1);
+          }
+          line[pos] = c;
+          pos++;
+          len++;
+          refresh_line(line, len, pos);
         }
       }
     }
