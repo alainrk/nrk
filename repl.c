@@ -32,14 +32,23 @@ static void restore_terminal(struct termios *original) {
 }
 
 static void configure_terminal(REPLState *state) {
+  // Store current terminal settings for later restoration
   tcgetattr(STDIN_FILENO, &state->original);
 
+  // Create a copy of original settings to modify
   struct termios raw = state->original;
+  // Disable canonical mode and echo (process keys immediately, don't display
+  // typed chars)
   raw.c_lflag &= ~(ICANON | ECHO);
+  // Return read() after at least one byte is available
   raw.c_cc[VMIN] = 1;
+  // No timeout for read()
   raw.c_cc[VTIME] = 0;
 
+  // Apply new terminal settings
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+
+  // Register function to restore terminal settings on program exit
   atexit((void (*)(void))restore_terminal);
 }
 
@@ -81,35 +90,55 @@ static void history_add(History *history, const char *line) {
     strncpy(history->entries[REPL_HISTORY_MAX - 1], line, REPL_LINE_MAX - 1);
     history->entries[REPL_HISTORY_MAX - 1][REPL_LINE_MAX - 1] = '\0';
   }
+
   history->current = history->count;
 }
 
+// Function to navigate through command history using up/down keys
 static void handle_history_navigation(REPLState *state, bool up) {
   History *history = &state->history;
   InputLine *line = &state->line;
 
+  // Calculate new history position based on direction
   int new_current = up ? history->current - 1 : history->current + 1;
 
+  // Upwards
   if (up && new_current >= 0) {
     history->current = new_current;
     clear_line(line);
+
+    // Copy the historical command to current line, ensuring we don't overflow
     strncpy(line->content, history->entries[history->current],
             REPL_LINE_MAX - 1);
+
+    // Ensure null-termination in case the history entry fills the buffer
     line->content[REPL_LINE_MAX - 1] = '\0';
+
+    // Update line length and cursor position
     line->length = strlen(line->content);
     line->position = line->length;
-  } else if (!up && new_current <= history->count) {
+  }
+  // Downwards
+  else if (!up && new_current <= history->count) {
     history->current = new_current;
     clear_line(line);
 
+    // Only copy content if we're not at the newest position (empty line)
     if (new_current < history->count) {
+      // Copy the historical command to current line, ensuring we don't overflow
       strncpy(line->content, history->entries[history->current],
               REPL_LINE_MAX - 1);
+
+      // Ensure null-termination in case the history entry fills the buffer
       line->content[REPL_LINE_MAX - 1] = '\0';
+
+      // Update line length and cursor position
       line->length = strlen(line->content);
       line->position = line->length;
     }
   }
+
+  // Render the updated line to the screen
   render_line(line);
 }
 
