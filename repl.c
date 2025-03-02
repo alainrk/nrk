@@ -1,5 +1,6 @@
 #include "common.h"
 #include "vm.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,194 +9,223 @@
 
 #define HISTORY_MAX 50
 #define LINE_MAX 1024
+#define ESC '\x1b'
+#define CTRL_D 4
+#define BACKSPACE 127
 
-static struct {
+typedef struct {
   char entries[HISTORY_MAX][LINE_MAX];
   int count;
   int current;
-} history;
+} History;
 
-static struct termios orig_termios;
+typedef struct {
+  char content[LINE_MAX];
+  int position;
+  int length;
+} InputLine;
 
-static void disable_raw_mode() {
-  tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+typedef struct {
+  struct termios original;
+  History history;
+  InputLine line;
+  VM *vm;
+} REPLState;
+
+static void restore_terminal(struct termios *original) {
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, original);
 }
 
-static void enable_raw_mode() {
-  tcgetattr(STDIN_FILENO, &orig_termios);
-  atexit(disable_raw_mode);
+static void configure_terminal(REPLState *state) {
+  tcgetattr(STDIN_FILENO, &state->original);
 
-  struct termios raw = orig_termios;
-
-  // Turn off ECHO and ICANON (canonical mode)
+  struct termios raw = state->original;
   raw.c_lflag &= ~(ICANON | ECHO);
-
-  // Set read timeout
-  raw.c_cc[VMIN] = 1;  // Wait for at least one character
-  raw.c_cc[VTIME] = 0; // No timeout
+  raw.c_cc[VMIN] = 1;
+  raw.c_cc[VTIME] = 0;
 
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+  atexit((void (*)(void))restore_terminal);
 }
 
-static void add_history(const char *line) {
-  if (history.count < HISTORY_MAX) {
-    strcpy(history.entries[history.count++], line);
+static void clear_line(InputLine *line) {
+  memset(line->content, 0, LINE_MAX);
+  line->position = 0;
+  line->length = 0;
+}
+
+static void render_line(const InputLine *line) {
+  // First clear the entire line
+  write(STDOUT_FILENO, "\r\x1b[K", 4);
+
+  // Write prompt and content
+  write(STDOUT_FILENO, "> ", 2);
+  if (line->length > 0) {
+    write(STDOUT_FILENO, line->content, line->length);
+  }
+
+  // Position cursor correctly
+  if (line->position < line->length) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "\r\x1b[%dC", line->position + 2); // +2 for "> "
+    write(STDOUT_FILENO, buf, strlen(buf));
+  }
+}
+
+static void history_add(History *history, const char *line) {
+  if (strlen(line) == 0)
+    return;
+
+  if (history->count < HISTORY_MAX) {
+    strncpy(history->entries[history->count], line, LINE_MAX - 1);
+    history->entries[history->count][LINE_MAX - 1] = '\0';
+    history->count++;
   } else {
-    // Shift everything down to make room
-    memmove(history.entries[0], history.entries[1],
-            sizeof(history.entries[0]) * (HISTORY_MAX - 1));
-    strcpy(history.entries[HISTORY_MAX - 1], line);
+    memmove(history->entries[0], history->entries[1],
+            sizeof(history->entries[0]) * (HISTORY_MAX - 1));
+    strncpy(history->entries[HISTORY_MAX - 1], line, LINE_MAX - 1);
+    history->entries[HISTORY_MAX - 1][LINE_MAX - 1] = '\0';
   }
-  history.current = history.count;
+  history->current = history->count;
 }
 
-// Refreshes the line on screen based on the current cursor position
-static void refresh_line(const char *line, int len, int pos) {
-  char buf[LINE_MAX + 20];
-  int idx = 0;
+static void handle_history_navigation(REPLState *state, bool up) {
+  History *history = &state->history;
+  InputLine *line = &state->line;
 
-  // First go to left edge
-  buf[idx++] = '\r';
+  int new_current = up ? history->current - 1 : history->current + 1;
 
-  // Write prompt
-  buf[idx++] = '>';
-  buf[idx++] = ' ';
+  if (up && new_current >= 0) {
+    history->current = new_current;
+    clear_line(line);
+    strncpy(line->content, history->entries[history->current], LINE_MAX - 1);
+    line->content[LINE_MAX - 1] = '\0';
+    line->length = strlen(line->content);
+    line->position = line->length;
+  } else if (!up && new_current <= history->count) {
+    history->current = new_current;
+    clear_line(line);
 
-  // Write current buffer content
-  memcpy(buf + idx, line, len);
-  idx += len;
+    if (new_current < history->count) {
+      strncpy(line->content, history->entries[history->current], LINE_MAX - 1);
+      line->content[LINE_MAX - 1] = '\0';
+      line->length = strlen(line->content);
+      line->position = line->length;
+    }
+  }
+  render_line(line);
+}
 
-  // Erase to the right of the cursor
-  buf[idx++] = '\x1b';
-  buf[idx++] = '[';
-  buf[idx++] = 'K';
-
-  // Move cursor to the right position
-  buf[idx++] = '\r'; // Back to start
-  buf[idx++] = '>';  // Prompt
-  buf[idx++] = ' ';  // Space after prompt
-
-  // Move cursor forward to pos
-  if (pos > 0) {
-    memcpy(buf + idx, line, pos);
-    idx += pos;
+static bool handle_escape_sequence(REPLState *state) {
+  char seq[2];
+  if (read(STDIN_FILENO, &seq[0], 1) != 1 ||
+      read(STDIN_FILENO, &seq[1], 1) != 1) {
+    return false;
   }
 
-  write(STDOUT_FILENO, buf, idx);
+  if (seq[0] != '[')
+    return false;
+
+  InputLine *line = &state->line;
+  switch (seq[1]) {
+  case 'A': // Up arrow
+  case 'B': // Down arrow
+    handle_history_navigation(state, seq[1] == 'A');
+    break;
+  case 'C': // Right arrow
+    if (line->position < line->length) {
+      line->position++;
+      render_line(line);
+    }
+    break;
+  case 'D': // Left arrow
+    if (line->position > 0) {
+      line->position--;
+      render_line(line);
+    }
+    break;
+  }
+  return true;
+}
+
+static void handle_backspace(REPLState *state) {
+  InputLine *line = &state->line;
+  if (line->position > 0) {
+    memmove(&line->content[line->position - 1], &line->content[line->position],
+            line->length - line->position + 1);
+    line->position--;
+    line->length--;
+    render_line(line);
+  }
+}
+
+static void handle_regular_input(REPLState *state, char c) {
+  InputLine *line = &state->line;
+  if (line->length < LINE_MAX - 1) {
+    if (line->position < line->length) {
+      memmove(&line->content[line->position + 1],
+              &line->content[line->position], line->length - line->position);
+    }
+    line->content[line->position] = c;
+    line->position++;
+    line->length++;
+    line->content[line->length] = '\0';
+    render_line(line);
+  }
 }
 
 void repl() {
-  VM *vm = initVM();
+  REPLState state = {0};
+  state.vm = initVM();
+
   printf("\nWelcome to nrk v0.0.1.\n");
+  configure_terminal(&state);
 
-  enable_raw_mode();
-  memset(&history, 0, sizeof(history));
-
-  char line[LINE_MAX];
-
-  for (;;) {
+  while (true) {
     printf("> ");
     fflush(stdout);
 
-    int pos = 0;
-    int len = 0;
-    memset(line, 0, sizeof(line));
+    clear_line(&state.line);
 
     while (true) {
       char c;
-      if (read(STDIN_FILENO, &c, 1) == 1) {
-        if (c == 4) { // Ctrl+D
-          printf("\n");
-          goto out;
-        }
+      if (read(STDIN_FILENO, &c, 1) != 1)
+        continue;
 
-        if (c == 27) { // ESC sequence
-          char seq[2];
-          if (read(STDIN_FILENO, &seq[0], 1) != 1)
-            break;
-          if (read(STDIN_FILENO, &seq[1], 1) != 1)
-            break;
-
-          if (seq[0] == '[') {
-            if (seq[1] == 'A') { // Up arrow
-              if (history.current > 0) {
-                // Clear current line
-                pos = 0;
-                len = 0;
-                line[0] = '\0';
-
-                history.current--;
-                strcpy(line, history.entries[history.current]);
-                len = strlen(line);
-                pos = len;
-                refresh_line(line, len, pos);
-              }
-            } else if (seq[1] == 'B') { // Down arrow
-              if (history.current < history.count) {
-                // Clear current line
-                pos = 0;
-                len = 0;
-                line[0] = '\0';
-
-                history.current++;
-                if (history.current < history.count) {
-                  strcpy(line, history.entries[history.current]);
-                  len = strlen(line);
-                  pos = len;
-                } else {
-                  // Clear the line when pressing down at the end of history
-                  line[0] = '\0';
-                  len = 0;
-                }
-                refresh_line(line, len, pos);
-              }
-            } else if (seq[1] == 'C') { // Right arrow
-              if (pos < len) {
-                pos++;
-                refresh_line(line, len, pos);
-              }
-            } else if (seq[1] == 'D') { // Left arrow
-              if (pos > 0) {
-                pos--;
-                refresh_line(line, len, pos);
-              }
-            }
-          }
-        } else if (c == '\n') {
-          printf("\n");
-          break;
-        } else if (c == 127 ||
-                   c == '\b') { // Backspace (127 is DEL, '\b' is Ctrl+H)
-          if (pos > 0) {
-            // Remove the character at pos-1 by shifting everything after it
-            memmove(&line[pos - 1], &line[pos], len - pos + 1);
-            pos--;
-            len--;
-            line[len] = '\0'; // Ensure null termination
-            refresh_line(line, len, pos);
-          }
-        } else if (len < sizeof(line) - 1) {
-          // Insert character at current position
-          if (pos < len) {
-            // Make room for the new character
-            memmove(&line[pos + 1], &line[pos], len - pos + 1);
-          }
-          line[pos] = c;
-          pos++;
-          len++;
-          refresh_line(line, len, pos);
-        }
+      if (c == CTRL_D) {
+        printf("\n");
+        goto cleanup;
       }
+
+      if (c == ESC) {
+        if (handle_escape_sequence(&state))
+          continue;
+        break;
+      }
+
+      if (c == '\n') {
+        write(STDOUT_FILENO, "\n", 1);
+        break;
+      }
+
+      if (c == BACKSPACE || c == '\b') {
+        handle_backspace(&state);
+        continue;
+      }
+
+      handle_regular_input(&state, c);
     }
 
-    if (strlen(line) > 0) {
-      add_history(line);
-      char *source = stripstring(line);
-      interpret(vm, source);
+    if (state.line.length > 0) {
+      // Ensure null termination before processing
+      state.line.content[state.line.length] = '\0';
+      history_add(&state.history, state.line.content);
+      char *source = stripstring(state.line.content);
+      interpret(state.vm, source);
     }
   }
 
-out:
-  disable_raw_mode();
-  freeVM(vm);
+cleanup:
+  restore_terminal(&state.original);
+  freeVM(state.vm);
 }
