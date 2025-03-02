@@ -1,3 +1,4 @@
+#include "repl.h"
 #include "common.h"
 #include "vm.h"
 #include <stdbool.h>
@@ -7,20 +8,14 @@
 #include <termios.h>
 #include <unistd.h>
 
-#define HISTORY_MAX 50
-#define LINE_MAX 1024
-#define ESC '\x1b'
-#define CTRL_D 4
-#define BACKSPACE 127
-
 typedef struct {
-  char entries[HISTORY_MAX][LINE_MAX];
+  char entries[REPL_HISTORY_MAX][REPL_LINE_MAX];
   int count;
   int current;
 } History;
 
 typedef struct {
-  char content[LINE_MAX];
+  char content[REPL_LINE_MAX];
   int position;
   int length;
 } InputLine;
@@ -49,7 +44,7 @@ static void configure_terminal(REPLState *state) {
 }
 
 static void clear_line(InputLine *line) {
-  memset(line->content, 0, LINE_MAX);
+  memset(line->content, 0, REPL_LINE_MAX);
   line->position = 0;
   line->length = 0;
 }
@@ -76,15 +71,15 @@ static void history_add(History *history, const char *line) {
   if (strlen(line) == 0)
     return;
 
-  if (history->count < HISTORY_MAX) {
-    strncpy(history->entries[history->count], line, LINE_MAX - 1);
-    history->entries[history->count][LINE_MAX - 1] = '\0';
+  if (history->count < REPL_HISTORY_MAX) {
+    strncpy(history->entries[history->count], line, REPL_LINE_MAX - 1);
+    history->entries[history->count][REPL_LINE_MAX - 1] = '\0';
     history->count++;
   } else {
     memmove(history->entries[0], history->entries[1],
-            sizeof(history->entries[0]) * (HISTORY_MAX - 1));
-    strncpy(history->entries[HISTORY_MAX - 1], line, LINE_MAX - 1);
-    history->entries[HISTORY_MAX - 1][LINE_MAX - 1] = '\0';
+            sizeof(history->entries[0]) * (REPL_HISTORY_MAX - 1));
+    strncpy(history->entries[REPL_HISTORY_MAX - 1], line, REPL_LINE_MAX - 1);
+    history->entries[REPL_HISTORY_MAX - 1][REPL_LINE_MAX - 1] = '\0';
   }
   history->current = history->count;
 }
@@ -98,8 +93,9 @@ static void handle_history_navigation(REPLState *state, bool up) {
   if (up && new_current >= 0) {
     history->current = new_current;
     clear_line(line);
-    strncpy(line->content, history->entries[history->current], LINE_MAX - 1);
-    line->content[LINE_MAX - 1] = '\0';
+    strncpy(line->content, history->entries[history->current],
+            REPL_LINE_MAX - 1);
+    line->content[REPL_LINE_MAX - 1] = '\0';
     line->length = strlen(line->content);
     line->position = line->length;
   } else if (!up && new_current <= history->count) {
@@ -107,8 +103,9 @@ static void handle_history_navigation(REPLState *state, bool up) {
     clear_line(line);
 
     if (new_current < history->count) {
-      strncpy(line->content, history->entries[history->current], LINE_MAX - 1);
-      line->content[LINE_MAX - 1] = '\0';
+      strncpy(line->content, history->entries[history->current],
+              REPL_LINE_MAX - 1);
+      line->content[REPL_LINE_MAX - 1] = '\0';
       line->length = strlen(line->content);
       line->position = line->length;
     }
@@ -128,17 +125,17 @@ static bool handle_escape_sequence(REPLState *state) {
 
   InputLine *line = &state->line;
   switch (seq[1]) {
-  case 'A': // Up arrow
-  case 'B': // Down arrow
+  case ARROW_UP:
+  case ARROW_DOWN:
     handle_history_navigation(state, seq[1] == 'A');
     break;
-  case 'C': // Right arrow
+  case ARROW_RIGHT:
     if (line->position < line->length) {
       line->position++;
       render_line(line);
     }
     break;
-  case 'D': // Left arrow
+  case ARROW_LEFT:
     if (line->position > 0) {
       line->position--;
       render_line(line);
@@ -161,7 +158,7 @@ static void handle_backspace(REPLState *state) {
 
 static void handle_regular_input(REPLState *state, char c) {
   InputLine *line = &state->line;
-  if (line->length < LINE_MAX - 1) {
+  if (line->length < REPL_LINE_MAX - 1) {
     if (line->position < line->length) {
       memmove(&line->content[line->position + 1],
               &line->content[line->position], line->length - line->position);
