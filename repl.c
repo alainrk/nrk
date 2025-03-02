@@ -175,7 +175,7 @@ void repl() {
   REPLState state = {0};
   state.vm = initVM();
 
-  printf("\nWelcome to nrk v0.0.1.\n");
+  printf("\nWelcome to nrk v%s.\n", NRK_VERSION);
   configure_terminal(&state);
 
   while (true) {
