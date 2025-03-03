@@ -347,6 +347,25 @@ static void binary(Scanner *scanner, Parser *parser, Chunk *chunk) {
   case TOKEN_SLASH:
     emitBytes(parser, currentChunk(chunk), 1, OP_DIVIDE);
     break;
+  case TOKEN_BANG_EQUAL:
+    emitBytes(parser, currentChunk(chunk), 1, OP_NOT_EQUAL);
+    break;
+  case TOKEN_EQUAL_EQUAL:
+    emitBytes(parser, currentChunk(chunk), 1, OP_EQUAL);
+    break;
+  case TOKEN_GREATER:
+    emitBytes(parser, currentChunk(chunk), 1, OP_GREATER);
+    break;
+  case TOKEN_GREATER_EQUAL:
+    emitBytes(parser, currentChunk(chunk), 1, OP_GREATER_EQUAL);
+    break;
+  case TOKEN_LESS:
+    emitBytes(parser, currentChunk(chunk), 1, OP_LESS);
+    break;
+  case TOKEN_LESS_EQUAL:
+    emitBytes(parser, currentChunk(chunk), 1, OP_LESS_EQUAL);
+    break;
+
   // Unreachable case
   default:
     return;

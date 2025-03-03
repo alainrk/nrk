@@ -81,6 +81,23 @@ static bool isFalsey(Value v) {
          ((IS_BOOL(v) && !AS_BOOL(v)) || (IS_NUMBER(v) && AS_NUMBER(v) == 0));
 }
 
+bool valuesEqual(Value a, Value b) {
+  if (a.type != b.type)
+    return false;
+  switch (a.type) {
+  case VAL_NUMBER:
+    return AS_NUMBER(a) == AS_NUMBER(b);
+    break;
+  case VAL_BOOL:
+    return AS_BOOL(a) == AS_BOOL(b);
+    break;
+  case VAL_NIL:
+    return true;
+  default:
+    return false;
+  }
+}
+
 // Better and faster way are writing ASM or using non standard C lib
 // To keep things simple we use a switch statement
 static InterpretResult run(VM *vm) {
@@ -176,6 +193,12 @@ static InterpretResult run(VM *vm) {
     }
     case OP_NOT: {
       vm->stackTop[-1] = BOOL_VAL(isFalsey(peek(vm, 0)));
+      break;
+    }
+    case OP_EQUAL: {
+      Value a = pop(vm);
+      Value b = pop(vm);
+      push(vm, BOOL_VAL(valuesEqual(a, b)));
       break;
     }
     }
