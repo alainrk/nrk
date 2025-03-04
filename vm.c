@@ -201,6 +201,22 @@ static InterpretResult run(VM *vm) {
       push(vm, BOOL_VAL(valuesEqual(a, b)));
       break;
     }
+    case OP_GREATER: {
+      BINARY_OP(BOOL_VAL, >);
+      break;
+    }
+    case OP_LESS: {
+      BINARY_OP(BOOL_VAL, <);
+      break;
+    }
+    case OP_LESS_EQUAL: {
+      BINARY_OP(BOOL_VAL, <=);
+      break;
+    }
+    case OP_GREATER_EQUAL: {
+      BINARY_OP(BOOL_VAL, >=);
+      break;
+    }
     }
   }
 
