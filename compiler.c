@@ -167,7 +167,8 @@ static void consume(Scanner *scanner, Parser *parser, TokenType type,
 static void emitBytes(Parser *parser, Chunk *chunk, int count, ...) {
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
-  printf("%semitBytes(%d) = ", strfromnchars('\t', debugIndent), count);
+  printf("%semitBytes(%d) = ",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent), count);
 #endif
 
   va_list args;
@@ -242,7 +243,8 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
   UNUSED(scanner);
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
-  printf("%sparsePrecedence(%s)\n", strfromnchars('\t', debugIndent),
+  printf("%sparsePrecedence(%s)\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent),
          precedenceTypeToString(precedence));
 #endif
 
@@ -257,7 +259,8 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
 
 #ifdef DEBUG_COMPILE_EXECUTION
   printf("%sprefixRule for %s has precedence = %s\n",
-         strfromnchars('\t', debugIndent), tokenTypeToString(parser->prev.type),
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent),
+         tokenTypeToString(parser->prev.type),
          precedenceTypeToString(rule->precedence));
 #endif
 
@@ -271,7 +274,7 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
 
 #ifdef DEBUG_COMPILE_EXECUTION
     printf("%sinfixRule for %s has precedence = %s\n",
-           strfromnchars('\t', debugIndent),
+           strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent),
            tokenTypeToString(parser->prev.type),
            precedenceTypeToString(r->precedence));
 #endif
@@ -280,7 +283,8 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
   }
 
 #ifdef DEBUG_COMPILE_EXECUTION
-  printf("%s end parsePrecedence()\n", strfromnchars('\t', debugIndent));
+  printf("%s end parsePrecedence()\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent));
   debugIndent--;
 #endif
 }
@@ -375,14 +379,16 @@ static void binary(Scanner *scanner, Parser *parser, Chunk *chunk) {
 static void expression(Scanner *scanner, Parser *parser, Chunk *chunk) {
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
-  printf("%sexpression()\n", strfromnchars('\t', debugIndent));
+  printf("%sexpression()\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent));
 #endif
 
   // This way we parse all the possible expression, being ASSIGNMENT the lowest.
   parsePrecedence(scanner, parser, PREC_ASSIGNMENT, chunk);
 
 #ifdef DEBUG_COMPILE_EXECUTION
-  printf("%send expression()\n", strfromnchars('\t', debugIndent));
+  printf("%send expression()\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent));
   debugIndent--;
 #endif
 }
@@ -392,7 +398,8 @@ static void grouping(Scanner *scanner, Parser *parser, Chunk *chunk) {
 
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
-  printf("%sgrouping(%s)\n", strfromnchars('\t', debugIndent),
+  printf("%sgrouping(%s)\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent),
          tokenTypeToString(TOKEN_RIGHT_PAREN));
   debugIndent--;
 #endif
@@ -409,7 +416,7 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
 
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
-  printf("%sunary(%s)\n", strfromnchars('\t', debugIndent),
+  printf("%sunary(%s)\n", strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent),
          tokenTypeToString(t));
   debugIndent--;
 #endif
@@ -442,7 +449,8 @@ static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
 
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
-  printf("%snumber(%.2f)\n", strfromnchars('\t', debugIndent), v);
+  printf("%snumber(%.2f)\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent), v);
   debugIndent--;
 #endif
 
@@ -454,7 +462,8 @@ static void literal(Scanner *scanner, Parser *parser, Chunk *chunk) {
 
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
-  printf("%sliteral(%s)\n", strfromnchars('\t', debugIndent),
+  printf("%sliteral(%s)\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent),
          tokenTypeToString(parser->prev.type));
   debugIndent--;
 #endif
