@@ -108,6 +108,7 @@ static InterpretResult run(VM *vm) {
 #define READ_CONSTANT_LONG()                                                   \
   (vm->chunk->constants.values[GET_CONSTANT_LONG_ID(                           \
       vm->chunk, (int)(vm->ip - vm->chunk->code - 1))])
+// TODO: Handle strings binary operations
 #define BINARY_OP(valueType, op)                                               \
   do {                                                                         \
     if (!IS_NUMBER(peek(vm, 0)) || !IS_NUMBER(peek(vm, 1))) {                  \
