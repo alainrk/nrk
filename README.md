@@ -16,6 +16,7 @@ The language is inspired by Bob Nystrom's ["Crafting Interpreters"](https://craf
 The language currently supports:
 
 - Basic arithmetic operations (`+`, `-`, `*`, `/`)
+- Comparison operations (`==`, `!=`, `>`, `<`, `>=`, `<=`)
 - Numeric literals
 - Unary negation
 - Boolean values (`true`, `false`)
@@ -29,6 +30,7 @@ Additional custom features implemented in `nrk`:
 - Extended constant pool (via `OP_CONSTANT_LONG` for more than 256 constants)
 - Tagged value representation (numbers, booleans, nil)
 - Runtime type checking
+- Advanced REPL with arrow key navigation and command history
 
 ## Project Structure
 
@@ -38,6 +40,7 @@ Additional custom features implemented in `nrk`:
 - **Chunk**: Represents bytecode and related metadata
 - **Value**: Represents runtime values (numbers, booleans, nil)
 - **Debug**: Tools for inspecting bytecode and execution
+- **REPL**: Interactive environment with history and line editing
 
 ## Building and Running
 
@@ -69,7 +72,7 @@ make all
 Calculations:
 
 ```c
-1 + 2 * (3 + 4) / 5 // => 3.8
+1 + 2 * (3 + 4) / 5 // 3.8
 ```
 
 Boolean operations:
@@ -80,9 +83,20 @@ Boolean operations:
 !nil  // true (falsey values = 0, false, nil)
 ```
 
+Comparison operations:
+
+```go
+1 == 1     // true
+2 != 2     // false
+3 > 2      // true
+4 < 3      // false
+5 >= 5     // true
+6 <= 7     // true
+```
+
 ## Development Status
 
-`nrk` is currently in early development. The focus has been on implementing the core bytecode VM, scanner, and compiler for expressions. Future plans include:
+`nrk` is currently in early development with version v0.0.1. The focus has been on implementing the core bytecode VM, scanner, and compiler for expressions. Future plans include:
 
 - Variables and assignment
 - String support and operations
