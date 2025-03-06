@@ -4,6 +4,17 @@
 #include "common.h"
 #include "value.h"
 
+#define OBJ_TYPE(value) (AS_OBJ(value)->type)
+
+// A function is needed as we need to use "value" twice, meaning it can
+// duplicate side-effects.
+#define IS_STRING(value) isObjType(value, OBJ_STRING)
+
+// Returns the ObjString*
+#define AS_STRING(value) ((ObjString *)AS_OBJ(value))
+// Returns the underlying chars array in ObjString*
+#define AS_CSTRING(value) (((ObjString *)AS_OBJ(value))->str)
+
 typedef enum {
   OBJ_STRING,
 } ObjType;
@@ -24,5 +35,9 @@ struct ObjString {
   int len;
   char *str;
 };
+
+static inline bool isObjType(Value value, ObjType type) {
+  return IS_OBJ(value) && AS_OBJ(value)->type == type;
+}
 
 #endif
