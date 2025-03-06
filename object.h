@@ -32,9 +32,11 @@ struct Obj {
 
 struct ObjString {
   Obj obj;
-  int len;
+  int length;
   char *str;
 };
+
+ObjString *copyString(const char *str, int length);
 
 static inline bool isObjType(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;

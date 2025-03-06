@@ -7,6 +7,9 @@
 #define GROW_ARR(type, pointer, oldCount, newCount)                            \
   (type *)reallocate(pointer, sizeof(type) * oldCount, sizeof(type) * newCount)
 
+#define ALLOCATE(type, count)                                                  \
+  (type *)reallocate(NULL, 0, sizeof(type) * (count))
+
 #define FREE_ARR(type, pointer, oldCount)                                      \
   reallocate(pointer, sizeof(type) * (oldCount), 0)
 
