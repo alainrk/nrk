@@ -4,6 +4,7 @@
 #include "compiler.h"
 #include "debug.h"
 #include "memory.h"
+#include "object.h"
 #include "value.h"
 #include <arpa/inet.h>
 #include <stdarg.h>
@@ -11,6 +12,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 VM *initVM() {
   VM *vm = (VM *)malloc(sizeof(VM));
@@ -81,6 +83,20 @@ static bool isFalsey(Value v) {
          ((IS_BOOL(v) && !AS_BOOL(v)) || (IS_NUMBER(v) && AS_NUMBER(v) == 0));
 }
 
+static void concatenate(VM *vm) {
+  // The order must be [ b, a ] to preserve the stack fifo sort.
+  ObjString *b = AS_STRING(pop(vm));
+  ObjString *a = AS_STRING(pop(vm));
+
+  int len = a->length + b->length;
+  char *str = ALLOCATE(char, len + 1);
+  memcpy(str, a->str, a->length);
+  memcpy(str + a->length, b->str, b->length);
+  str[len] = '\0';
+  ObjString *c = takeString(str, len);
+  push(vm, OBJ_VAL(c));
+}
+
 // Better and faster way are writing ASM or using non standard C lib
 // To keep things simple we use a switch statement
 static InterpretResult run(VM *vm) {
@@ -132,7 +148,14 @@ static InterpretResult run(VM *vm) {
       break;
     }
     case OP_ADD: {
-      BINARY_OP(NUMBER_VAL, +);
+      if (IS_STRING(peek(vm, 0)) && IS_STRING(peek(vm, 1))) {
+        concatenate(vm);
+      } else if (IS_NUMBER(peek(vm, 0)) || IS_NUMBER(peek(vm, 1))) {
+        push(vm, NUMBER_VAL(AS_NUMBER(pop(vm)) + AS_NUMBER(pop(vm))));
+      } else {
+        runtimeError(vm, "Operand must be a string or a number");
+      }
+
       break;
     }
     case OP_SUBTRACT: {

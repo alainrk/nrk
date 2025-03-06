@@ -41,3 +41,10 @@ void printObject(Value value) {
     break;
   }
 }
+
+// It needs to be used only when the ownership of the passed in string is
+// already under control of who allocates ObjString.
+ObjString *takeString(char *str, int len) {
+  ObjString *s = allocateString(str, len);
+  return s;
+}
