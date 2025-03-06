@@ -34,6 +34,5 @@ InterpretResult interpret(VM *vm, const char *source);
 void resetStack(VM *vm);
 void push(VM *vm, Value value);
 Value pop(VM *vm);
-bool valuesEqual(Value a, Value b);
 
 #endif

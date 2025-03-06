@@ -1,6 +1,7 @@
 #include "compiler.h"
 #include "chunk.h"
 #include "common.h"
+#include "object.h"
 #include "scanner.h"
 #include "value.h"
 #include <stdarg.h>
@@ -18,6 +19,7 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk);
 static void binary(Scanner *scanner, Parser *parser, Chunk *chunk);
 static void number(Scanner *scanner, Parser *parser, Chunk *chunk);
 static void literal(Scanner *scanner, Parser *parser, Chunk *chunk);
+static void string(Scanner *scanner, Parser *parser, Chunk *chunk);
 static ParseRule *getRule(TokenType type);
 
 ParseRule rules[] = {
@@ -41,7 +43,13 @@ ParseRule rules[] = {
     [TOKEN_LESS] = {NULL, binary, PREC_COMPARISON},
     [TOKEN_LESS_EQUAL] = {NULL, binary, PREC_COMPARISON},
     [TOKEN_IDENTIFIER] = {NULL, NULL, PREC_NONE},
-    [TOKEN_STRING] = {NULL, NULL, PREC_NONE},
+    [TOKEN_STRING] = {string, NULL, PREC_NONE},
+    // TODO:
+    // TOKEN_TEMPL_START,        // Opening "`"
+    // TOKEN_TEMPL_END,          // Closing "`"
+    // TOKEN_TEMPL_INTERP_START, // Opening "${"
+    // TOKEN_TEMPL_INTERP_END,   // Closing "}"
+    // TOKEN_TEMPL_CONTENT,      // Non-expression content
     [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
     [TOKEN_AND] = {NULL, NULL, PREC_NONE},
     [TOKEN_CLASS] = {NULL, NULL, PREC_NONE},
@@ -461,6 +469,25 @@ static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
 #endif
 
   emitConstant(parser, currentChunk(chunk), NUMBER_VAL(v));
+}
+
+static void string(Scanner *scanner, Parser *parser, Chunk *chunk) {
+  UNUSED(scanner);
+
+#ifdef DEBUG_COMPILE_EXECUTION
+  debugIndent++;
+  printf("%sstring(%s)\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent),
+         tokenTypeToString(parser->prev.type));
+  debugIndent--;
+#endif
+
+  // We need to copy the string from the source code into our heap, starting
+  // right after the `"` and before the ending `"`, and including space for \0
+  // that's not in the source code.
+  emitConstant(
+      parser, currentChunk(chunk),
+      OBJ_VAL(copyString(parser->prev.start + 1, parser->prev.length - 2)));
 }
 
 static void literal(Scanner *scanner, Parser *parser, Chunk *chunk) {

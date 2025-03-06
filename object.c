@@ -2,6 +2,7 @@
 #include "memory.h"
 #include "value.h"
 #include "vm.h"
+#include <stdio.h>
 #include <string.h>
 
 // "Constructor" for Object
@@ -28,4 +29,15 @@ ObjString *copyString(const char *str, int length) {
   memcpy(heapChars, str, length);
   heapChars[length] = '\0';
   return allocateString(heapChars, length);
+}
+
+void printObject(Value value) {
+  switch (OBJ_TYPE(value)) {
+  case OBJ_STRING:
+    printf("%s", AS_STRING(value)->str);
+    break;
+  default:
+    printf("Undefined Object Type");
+    break;
+  }
 }
