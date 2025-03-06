@@ -150,10 +150,11 @@ static InterpretResult run(VM *vm) {
     case OP_ADD: {
       if (IS_STRING(peek(vm, 0)) && IS_STRING(peek(vm, 1))) {
         concatenate(vm);
-      } else if (IS_NUMBER(peek(vm, 0)) || IS_NUMBER(peek(vm, 1))) {
+      } else if (IS_NUMBER(peek(vm, 0)) && IS_NUMBER(peek(vm, 1))) {
         push(vm, NUMBER_VAL(AS_NUMBER(pop(vm)) + AS_NUMBER(pop(vm))));
       } else {
-        runtimeError(vm, "Operand must be a string or a number");
+        runtimeError(vm, "Operands must be both either strings or numbers");
+        return INTERPRET_RUNTIME_ERROR;
       }
 
       break;
