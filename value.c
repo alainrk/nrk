@@ -63,7 +63,8 @@ bool valuesEqual(Value a, Value b) {
   case VAL_OBJ: {
     ObjString *as = AS_STRING(a);
     ObjString *bs = AS_STRING(b);
-    return as->length == bs->length && memcmp(as, bs, as->length) == 0;
+    return as->length == bs->length &&
+           memcmp(as->str, bs->str, as->length) == 0;
   }
   default:
     return false;
