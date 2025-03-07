@@ -3,6 +3,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+MemoryManager *initMemoryManager() {
+  MemoryManager *mm = (MemoryManager *)malloc(sizeof(MemoryManager));
+  return mm;
+}
+
+void freeMemoryManager(MemoryManager *mm) {
+  // TODO: Probably there will be other things to cleanup here if it gets more
+  // complex.
+  free(mm);
+}
+
 void *reallocate(void *p, size_t oldSize, size_t newSize) {
   if (newSize == 0) {
     free(p);

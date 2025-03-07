@@ -2,6 +2,7 @@
 #define nrk_object_h
 
 #include "common.h"
+#include "memory.h"
 #include "value.h"
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
@@ -28,6 +29,8 @@ typedef enum {
 // Obj will be always the first element in every struct ObjXXX.
 struct Obj {
   ObjType type;
+  // For now we use intrusive list for GC
+  Obj *next;
 };
 
 struct ObjString {
@@ -36,9 +39,9 @@ struct ObjString {
   char *str;
 };
 
-ObjString *copyString(const char *str, int length);
+ObjString *copyString(MemoryManager *mm, const char *str, int length);
 void printObject(Value value);
-ObjString *takeString(char *str, int len);
+ObjString *takeString(MemoryManager *mm, char *str, int len);
 
 static inline bool isObjType(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;

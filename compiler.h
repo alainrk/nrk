@@ -2,8 +2,8 @@
 #define nrk_compiler_h
 
 #include "chunk.h"
+#include "memory.h"
 #include "scanner.h"
-#include "vm.h"
 
 typedef struct {
   Token curr;
@@ -20,8 +20,6 @@ typedef struct {
 
 } Parser;
 
-typedef void (*ParseFn)(Scanner *scanner, Parser *parser, Chunk *chunk);
-
 typedef enum {
   PREC_NONE,       // 0. None
   PREC_ASSIGNMENT, // 1. =
@@ -36,6 +34,14 @@ typedef enum {
   PREC_PRIMARY     // 10. Primary
 } Precedence;
 
+typedef struct {
+  MemoryManager *memoryManager;
+  Scanner *scanner;
+  Parser *parser;
+} Compiler;
+
+typedef void (*ParseFn)(Compiler *compiler, Chunk *chunk);
+
 // Given an expression starting with a token, knowing its type we need to know:
 typedef struct {
   // The func to parse this token when in prefix position (start of expr).
@@ -46,7 +52,10 @@ typedef struct {
   Precedence precedence;
 } ParseRule;
 
-bool compile(const char *source, Chunk *chunk);
+Compiler *initCompiler(MemoryManager *mm);
+void freeCompiler(Compiler *compiler);
+
+bool compile(Compiler *compiler, const char *source, Chunk *chunk);
 const char *precedenceTypeToString(Precedence type);
 
 #endif

@@ -2,6 +2,8 @@
 #define nrk_vm_h
 
 #include "chunk.h"
+#include "compiler.h"
+#include "memory.h"
 #include "value.h"
 
 typedef struct {
@@ -19,6 +21,11 @@ typedef struct {
 
   // Pointer to the first empty item (allowed in C) i.e. the next one to fill
   Value *stackTop;
+
+  Compiler *compiler;
+
+  // Garbage collector management
+  MemoryManager *memoryManager;
 } VM;
 
 typedef enum {

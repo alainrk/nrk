@@ -14,12 +14,12 @@
 
 int debugIndent = 0;
 
-static void grouping(Scanner *scanner, Parser *parser, Chunk *chunk);
-static void unary(Scanner *scanner, Parser *parser, Chunk *chunk);
-static void binary(Scanner *scanner, Parser *parser, Chunk *chunk);
-static void number(Scanner *scanner, Parser *parser, Chunk *chunk);
-static void literal(Scanner *scanner, Parser *parser, Chunk *chunk);
-static void string(Scanner *scanner, Parser *parser, Chunk *chunk);
+static void grouping(Compiler *compiler, Chunk *chunk);
+static void unary(Compiler *compiler, Chunk *chunk);
+static void binary(Compiler *compiler, Chunk *chunk);
+static void number(Compiler *compiler, Chunk *chunk);
+static void literal(Compiler *compiler, Chunk *chunk);
+static void string(Compiler *compiler, Chunk *chunk);
 static ParseRule *getRule(TokenType type);
 
 ParseRule rules[] = {
@@ -114,6 +114,25 @@ const char *precedenceTypeToString(Precedence type) {
   }
 }
 
+Compiler *initCompiler(MemoryManager *mm) {
+  // NOTE: Scanner gets initialized in compile() as it take the source code,
+  // evaluate if improve it.
+  Compiler *compiler = (Compiler *)malloc(sizeof(Compiler));
+  Parser *parser = (Parser *)malloc(sizeof(Parser));
+  compiler->memoryManager = mm;
+  return compiler;
+}
+
+void freeCompiler(Compiler *compiler) {
+  free(compiler->parser);
+  compiler->parser = NULL;
+
+  freeScanner(compiler->scanner);
+  compiler->scanner = NULL;
+
+  free(compiler);
+}
+
 static Chunk *currentChunk(Chunk *chunk) { return chunk; }
 
 static void errorAt(Parser *parser, Token *token, const char *message) {
@@ -148,31 +167,30 @@ static void errorAtCurrent(Parser *parser, const char *message) {
   errorAt(parser, &parser->curr, message);
 }
 
-static void advance(Scanner *scanner, Parser *parser) {
-  parser->prev = parser->curr;
+static void advance(Compiler *compiler) {
+  compiler->parser->prev = compiler->parser->curr;
 
   for (;;) {
-    parser->curr = scanToken(scanner);
-    if (parser->curr.type != TOKEN_ERROR)
+    compiler->parser->curr = scanToken(compiler->scanner);
+    if (compiler->parser->curr.type != TOKEN_ERROR)
       break;
 
-    errorAtCurrent(parser, parser->curr.start);
+    errorAtCurrent(compiler->parser, compiler->parser->curr.start);
   }
 }
 
 // Consume just advance but checking that the type is coherent, "throws" an
 // error otherwise.
-static void consume(Scanner *scanner, Parser *parser, TokenType type,
-                    const char *message) {
-  if (parser->curr.type == type) {
-    advance(scanner, parser);
+static void consume(Compiler *compiler, TokenType type, const char *message) {
+  if (compiler->parser->curr.type == type) {
+    advance(compiler);
     return;
   }
 
-  errorAtCurrent(parser, message);
+  errorAtCurrent(compiler->parser, message);
 }
 
-static void emitBytes(Parser *parser, Chunk *chunk, int count, ...) {
+static void emitBytes(Compiler *compiler, Chunk *chunk, int count, ...) {
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
   printf("%semitBytes(%d) = ",
@@ -189,7 +207,7 @@ static void emitBytes(Parser *parser, Chunk *chunk, int count, ...) {
     printf("%x ", byte);
 #endif
 
-    writeChunk(currentChunk(chunk), byte, parser->prev.line);
+    writeChunk(currentChunk(chunk), byte, compiler->parser->prev.line);
   }
 
   va_end(args);
@@ -200,20 +218,20 @@ static void emitBytes(Parser *parser, Chunk *chunk, int count, ...) {
 #endif
 }
 
-static void emitReturn(Parser *parser, Chunk *chunk) {
-  emitBytes(parser, currentChunk(chunk), 1, OP_RETURN);
+static void emitReturn(Compiler *compiler, Chunk *chunk) {
+  emitBytes(compiler, currentChunk(chunk), 1, OP_RETURN);
 }
 
-static void emitConstant(Parser *parser, Chunk *chunk, Value v) {
+static void emitConstant(Compiler *compiler, Chunk *chunk, Value v) {
   int idx = addConstant(currentChunk(chunk), v);
 
   if (idx <= UINT8_MAX) {
-    emitBytes(parser, currentChunk(chunk), 2, OP_CONSTANT, idx);
+    emitBytes(compiler, currentChunk(chunk), 2, OP_CONSTANT, idx);
     return;
   }
 
   if (idx > 0x00FFFFFE) {
-    error(parser, "Too many constants in one chunk.");
+    error(compiler->parser, "Too many constants in one chunk.");
     return;
   }
 
@@ -223,7 +241,7 @@ static void emitConstant(Parser *parser, Chunk *chunk, Value v) {
   u_int8_t b2 = (idx & 0x00ff00) >> 8;
   u_int8_t b3 = (idx & 0x0000ff);
 
-  emitBytes(parser, currentChunk(chunk), 4, OP_CONSTANT_LONG, b1, b2, b3);
+  emitBytes(compiler, currentChunk(chunk), 4, OP_CONSTANT_LONG, b1, b2, b3);
 }
 
 // Parses the expression with given precedence or higher.
@@ -246,9 +264,8 @@ static void emitConstant(Parser *parser, Chunk *chunk, Value v) {
 //     - grouping() -> expression()
 //     - number() -> Consume byte.
 //
-static void parsePrecedence(Scanner *scanner, Parser *parser,
-                            Precedence precedence, Chunk *chunk) {
-  UNUSED(scanner);
+static void parsePrecedence(Compiler *compiler, Precedence precedence,
+                            Chunk *chunk) {
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
   printf("%sparsePrecedence(%s)\n",
@@ -256,38 +273,38 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
          precedenceTypeToString(precedence));
 #endif
 
-  advance(scanner, parser);
+  advance(compiler);
 
   // The first token must always be part of a prefix operation, by definition.
-  ParseRule *rule = getRule(parser->prev.type);
+  ParseRule *rule = getRule(compiler->parser->prev.type);
   if (rule->prefix == NULL) {
-    error(parser, "Expect expression");
+    error(compiler->parser, "Expect expression");
     return;
   }
 
 #ifdef DEBUG_COMPILE_EXECUTION
   printf("%sprefixRule for %s has precedence = %s\n",
          strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent),
-         tokenTypeToString(parser->prev.type),
+         tokenTypeToString(compiler->parser->prev.type),
          precedenceTypeToString(rule->precedence));
 #endif
 
-  rule->prefix(scanner, parser, chunk);
+  rule->prefix(compiler, chunk);
 
   // If there is some infix rule, the prefix above might an operand of it.
   // Go ahead until, and only if, the precedence allows it.
-  while (precedence <= getRule(parser->curr.type)->precedence) {
-    advance(scanner, parser);
-    ParseRule *r = getRule(parser->prev.type);
+  while (precedence <= getRule(compiler->parser->curr.type)->precedence) {
+    advance(compiler);
+    ParseRule *r = getRule(compiler->parser->prev.type);
 
 #ifdef DEBUG_COMPILE_EXECUTION
     printf("%sinfixRule for %s has precedence = %s\n",
            strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent),
-           tokenTypeToString(parser->prev.type),
+           tokenTypeToString(compiler->parser->prev.type),
            precedenceTypeToString(r->precedence));
 #endif
 
-    r->infix(scanner, parser, chunk);
+    r->infix(compiler, chunk);
   }
 
 #ifdef DEBUG_COMPILE_EXECUTION
@@ -297,11 +314,11 @@ static void parsePrecedence(Scanner *scanner, Parser *parser,
 #endif
 }
 
-static void endCompiler(Parser *parser, Chunk *chunk) {
-  emitReturn(parser, currentChunk(chunk));
+static void endCompiler(Compiler *compiler, Chunk *chunk) {
+  emitReturn(compiler, currentChunk(chunk));
 
 #ifdef DEBUG_PRINT_CODE
-  if (!parser->hadError) {
+  if (!compiler->parser->hadError) {
     disassembleChunk(chunk, "code");
   }
 #endif
@@ -309,8 +326,8 @@ static void endCompiler(Parser *parser, Chunk *chunk) {
 
 ParseRule *getRule(TokenType t) { return &rules[t]; }
 
-static void binary(Scanner *scanner, Parser *parser, Chunk *chunk) {
-  TokenType t = parser->prev.type;
+static void binary(Compiler *compiler, Chunk *chunk) {
+  TokenType t = compiler->parser->prev.type;
 
   // Example: 2 * 3 + 4
   //
@@ -344,44 +361,44 @@ static void binary(Scanner *scanner, Parser *parser, Chunk *chunk) {
   // To do that we'd call parsePrecedence with the same precedence instead.
 
   ParseRule *rule = getRule(t);
-  parsePrecedence(scanner, parser, (Precedence)(rule->precedence + 1), chunk);
+  parsePrecedence(compiler, (Precedence)(rule->precedence + 1), chunk);
 
   switch (t) {
   case TOKEN_PLUS:
-    emitBytes(parser, currentChunk(chunk), 1, OP_ADD);
+    emitBytes(compiler, currentChunk(chunk), 1, OP_ADD);
     break;
   case TOKEN_MINUS:
-    emitBytes(parser, currentChunk(chunk), 1, OP_SUBTRACT);
+    emitBytes(compiler, currentChunk(chunk), 1, OP_SUBTRACT);
     break;
   case TOKEN_STAR:
-    emitBytes(parser, currentChunk(chunk), 1, OP_MULTIPLY);
+    emitBytes(compiler, currentChunk(chunk), 1, OP_MULTIPLY);
     break;
   case TOKEN_SLASH:
-    emitBytes(parser, currentChunk(chunk), 1, OP_DIVIDE);
+    emitBytes(compiler, currentChunk(chunk), 1, OP_DIVIDE);
     break;
   case TOKEN_EQUAL_EQUAL:
-    emitBytes(parser, currentChunk(chunk), 1, OP_EQUAL);
+    emitBytes(compiler, currentChunk(chunk), 1, OP_EQUAL);
     break;
   case TOKEN_GREATER:
-    emitBytes(parser, currentChunk(chunk), 1, OP_GREATER);
+    emitBytes(compiler, currentChunk(chunk), 1, OP_GREATER);
     break;
   case TOKEN_LESS:
-    emitBytes(parser, currentChunk(chunk), 1, OP_LESS);
+    emitBytes(compiler, currentChunk(chunk), 1, OP_LESS);
     break;
   case TOKEN_BANG_EQUAL:
     // This could be done  by pushing EQUAL, NOT to reduce the amount of ops,
     // but this way is slightly faster
-    emitBytes(parser, currentChunk(chunk), 1, OP_NOT_EQUAL);
+    emitBytes(compiler, currentChunk(chunk), 1, OP_NOT_EQUAL);
     break;
   case TOKEN_GREATER_EQUAL:
     // This could be done by pushing LESS, NOT to reduce the amount of ops, but
     // this way is slightly faster
-    emitBytes(parser, currentChunk(chunk), 1, OP_GREATER_EQUAL);
+    emitBytes(compiler, currentChunk(chunk), 1, OP_GREATER_EQUAL);
     break;
   case TOKEN_LESS_EQUAL:
     // This could be done by pushing GREATER, NOT to reduce the amount of ops,
     // but this way is slightly faster
-    emitBytes(parser, currentChunk(chunk), 1, OP_LESS_EQUAL);
+    emitBytes(compiler, currentChunk(chunk), 1, OP_LESS_EQUAL);
     break;
 
   // Unreachable case
@@ -390,7 +407,7 @@ static void binary(Scanner *scanner, Parser *parser, Chunk *chunk) {
   }
 }
 
-static void expression(Scanner *scanner, Parser *parser, Chunk *chunk) {
+static void expression(Compiler *compiler, Chunk *chunk) {
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
   printf("%sexpression()\n",
@@ -398,7 +415,7 @@ static void expression(Scanner *scanner, Parser *parser, Chunk *chunk) {
 #endif
 
   // This way we parse all the possible expression, being ASSIGNMENT the lowest.
-  parsePrecedence(scanner, parser, PREC_ASSIGNMENT, chunk);
+  parsePrecedence(compiler, PREC_ASSIGNMENT, chunk);
 
 #ifdef DEBUG_COMPILE_EXECUTION
   printf("%send expression()\n",
@@ -408,7 +425,7 @@ static void expression(Scanner *scanner, Parser *parser, Chunk *chunk) {
 }
 
 // Prefix expression: We assume "(" has already been consumed.
-static void grouping(Scanner *scanner, Parser *parser, Chunk *chunk) {
+static void grouping(Compiler *compiler, Chunk *chunk) {
 
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
@@ -420,13 +437,13 @@ static void grouping(Scanner *scanner, Parser *parser, Chunk *chunk) {
 
   // This will generate all the necessary bytecode needed to evaluate the
   // expression.
-  expression(scanner, parser, chunk);
-  consume(scanner, parser, TOKEN_RIGHT_PAREN, "Expect ')' after expressions.");
+  expression(compiler, chunk);
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after expressions.");
 }
 
 // Prefix expression: We assume "(" has already been consumed.
-static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
-  TokenType t = parser->prev.type;
+static void unary(Compiler *compiler, Chunk *chunk) {
+  TokenType t = compiler->parser->prev.type;
 
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
@@ -436,7 +453,7 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
 #endif
 
   // Compile the operand.
-  parsePrecedence(scanner, parser, PREC_UNARY, chunk);
+  parsePrecedence(compiler, PREC_UNARY, chunk);
 
   // Emit the operator instruction, AFTER the expression, so it gets then popped
   // and the operator applied.
@@ -444,22 +461,20 @@ static void unary(Scanner *scanner, Parser *parser, Chunk *chunk) {
     // When parsing the operand to unary -, we need to compile only expressions
     // at a certain precedence level or higher.
   case TOKEN_MINUS:
-    emitBytes(parser, currentChunk(chunk), 1, OP_NEGATE);
+    emitBytes(compiler, currentChunk(chunk), 1, OP_NEGATE);
     break;
   case TOKEN_BANG:
-    emitBytes(parser, currentChunk(chunk), 1, OP_NOT);
+    emitBytes(compiler, currentChunk(chunk), 1, OP_NOT);
     break;
   // Unreachable case
   default:
-    error(parser, "Unexpected unary");
+    error(compiler->parser, "Unexpected unary");
     return;
   }
 }
 
-static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
-  UNUSED(scanner);
-
-  double v = strtod(parser->prev.start, NULL);
+static void number(Compiler *compiler, Chunk *chunk) {
+  double v = strtod(compiler->parser->prev.start, NULL);
 
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
@@ -468,76 +483,74 @@ static void number(Scanner *scanner, Parser *parser, Chunk *chunk) {
   debugIndent--;
 #endif
 
-  emitConstant(parser, currentChunk(chunk), NUMBER_VAL(v));
+  emitConstant(compiler, currentChunk(chunk), NUMBER_VAL(v));
 }
 
-static void string(Scanner *scanner, Parser *parser, Chunk *chunk) {
-  UNUSED(scanner);
-
+static void string(Compiler *compiler, Chunk *chunk) {
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
   printf("%sstring(%s)\n",
          strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent),
-         tokenTypeToString(parser->prev.type));
+         tokenTypeToString(compiler->parser->prev.type));
   debugIndent--;
 #endif
 
   // We need to copy the string from the source code into our heap, starting
   // right after the `"` and before the ending `"`, and including space for \0
   // that's not in the source code.
-  emitConstant(
-      parser, currentChunk(chunk),
-      OBJ_VAL(copyString(parser->prev.start + 1, parser->prev.length - 2)));
+  emitConstant(compiler, currentChunk(chunk),
+               OBJ_VAL(copyString(compiler->memoryManager,
+                                  compiler->parser->prev.start + 1,
+                                  compiler->parser->prev.length - 2)));
 }
 
-static void literal(Scanner *scanner, Parser *parser, Chunk *chunk) {
-  UNUSED(scanner);
-
+static void literal(Compiler *compiler, Chunk *chunk) {
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
   printf("%sliteral(%s)\n",
          strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent),
-         tokenTypeToString(parser->prev.type));
+         tokenTypeToString(compiler->parser->prev.type));
   debugIndent--;
 #endif
 
-  switch (parser->prev.type) {
+  switch (compiler->parser->prev.type) {
   case TOKEN_NIL:
-    emitBytes(parser, chunk, 1, OP_NIL);
+    emitBytes(compiler, chunk, 1, OP_NIL);
     break;
   case TOKEN_TRUE:
-    emitBytes(parser, chunk, 1, OP_TRUE);
+    emitBytes(compiler, chunk, 1, OP_TRUE);
     break;
   case TOKEN_FALSE:
-    emitBytes(parser, chunk, 1, OP_FALSE);
+    emitBytes(compiler, chunk, 1, OP_FALSE);
     break;
   default:
-    error(parser, "Unexpected literal");
+    error(compiler->parser, "Unexpected literal");
     return;
   }
 }
 
 // Returns true is the parser haven't had any error.
-bool compile(const char *source, Chunk *chunk) {
+bool compile(Compiler *compiler, const char *source, Chunk *chunk) {
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent = 0;
   printf("======= compile start() =======\n\n");
 #endif
 
-  Scanner *scanner = initScanner(source);
-  Parser parser;
+  // TODO: Move this in an upper level initialization and remember to call
+  // freeXXX functions of them too
+  compiler->scanner = initScanner(source);
 
-  parser.hadError = false;
-  parser.panicMode = false;
+  compiler->parser->hadError = false;
+  compiler->parser->panicMode = false;
 
-  advance(scanner, &parser);
-  expression(scanner, &parser, chunk);
-  consume(scanner, &parser, TOKEN_EOF, "Expect end of expression.");
-  endCompiler(&parser, chunk);
+  advance(compiler);
+  expression(compiler, chunk);
+  consume(compiler, TOKEN_EOF, "Expect end of expression.");
+  endCompiler(compiler, chunk);
 
 #ifdef DEBUG_COMPILE_EXECUTION
   printf("\n======== compile end() ========\n\n");
 #endif
 
-  return !parser.hadError;
+  return !compiler->parser->hadError;
 }

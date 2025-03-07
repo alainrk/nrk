@@ -16,12 +16,21 @@
 
 VM *initVM() {
   VM *vm = (VM *)malloc(sizeof(VM));
+  vm->memoryManager = initMemoryManager();
+  vm->compiler = initCompiler(vm->memoryManager);
   resetStack(vm);
   return vm;
 }
 
 void freeVM(VM *vm) {
   FREE_ARR(Value, vm->stack, vm->stackCap);
+
+  freeCompiler(vm->compiler);
+  vm->compiler = NULL;
+
+  freeMemoryManager(vm->memoryManager);
+  vm->memoryManager = NULL;
+
   free(vm);
 };
 
@@ -93,7 +102,7 @@ static void concatenate(VM *vm) {
   memcpy(str, a->str, a->length);
   memcpy(str + a->length, b->str, b->length);
   str[len] = '\0';
-  ObjString *c = takeString(str, len);
+  ObjString *c = takeString(vm->memoryManager, str, len);
   push(vm, OBJ_VAL(c));
 }
 
@@ -245,7 +254,7 @@ InterpretResult interpret(VM *vm, const char *source) {
   Chunk chunk;
   initChunk(&chunk);
 
-  if (!compile(source, &chunk)) {
+  if (!compile(vm->compiler, source, &chunk)) {
     freeChunk(&chunk);
     return INTERPRET_COMPILE_ERROR;
   }

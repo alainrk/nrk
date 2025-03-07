@@ -1,34 +1,39 @@
 #include "object.h"
 #include "memory.h"
 #include "value.h"
-#include "vm.h"
 #include <stdio.h>
 #include <string.h>
 
 // "Constructor" for Object
-#define ALLOCATE_OBJ(type, objectType)                                         \
-  (type *)allocateObject(sizeof(type), objectType)
+#define ALLOCATE_OBJ(mm, type, objectType)                                     \
+  (type *)allocateObject(mm, sizeof(type), objectType)
 
-Obj *allocateObject(size_t size, ObjType type) {
+Obj *allocateObject(MemoryManager *mm, size_t size, ObjType type) {
   Obj *obj = (Obj *)reallocate(NULL, 0, size);
   obj->type = type;
+
+  // Adding to the head of the LinkedList for GC
+  obj->next = mm->objects;
+  // Update the head
+  mm->objects = obj;
+
   return obj;
 }
 
-ObjString *allocateString(char *chars, int length) {
-  ObjString *string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
+ObjString *allocateString(MemoryManager *mm, char *chars, int length) {
+  ObjString *string = ALLOCATE_OBJ(mm, ObjString, OBJ_STRING);
   string->length = length;
   string->str = chars;
   return string;
 }
 
-ObjString *copyString(const char *str, int length) {
+ObjString *copyString(MemoryManager *mm, const char *str, int length) {
   // Allocating and copying over the content, ObjString owns the string on the
   // heap, can free it without consequences and so on.
   char *heapChars = ALLOCATE(char, length + 1);
   memcpy(heapChars, str, length);
   heapChars[length] = '\0';
-  return allocateString(heapChars, length);
+  return allocateString(mm, heapChars, length);
 }
 
 void printObject(Value value) {
@@ -44,7 +49,7 @@ void printObject(Value value) {
 
 // It needs to be used only when the ownership of the passed in string is
 // already under control of who allocates ObjString.
-ObjString *takeString(char *str, int len) {
-  ObjString *s = allocateString(str, len);
+ObjString *takeString(MemoryManager *mm, char *str, int len) {
+  ObjString *s = allocateString(mm, str, len);
   return s;
 }
