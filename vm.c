@@ -184,7 +184,6 @@ static InterpretResult run(VM *vm) {
       Value constant = READ_CONSTANT_LONG();
       push(vm, constant);
       MOVE_BYTES(3);
-      printValue(constant, "---------\tRun OP_CONSTANT_LONG: ", "\n");
       break;
     }
     case OP_NIL: {
