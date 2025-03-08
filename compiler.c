@@ -118,7 +118,7 @@ Compiler *initCompiler(MemoryManager *mm) {
   // NOTE: Scanner gets initialized in compile() as it take the source code,
   // evaluate if improve it.
   Compiler *compiler = (Compiler *)malloc(sizeof(Compiler));
-  Parser *parser = (Parser *)malloc(sizeof(Parser));
+  compiler->parser = (Parser *)malloc(sizeof(Parser));
   compiler->memoryManager = mm;
   return compiler;
 }
