@@ -14,6 +14,8 @@
 #define FREE_ARR(type, pointer, oldCount)                                      \
   reallocate(pointer, sizeof(type) * (oldCount), 0)
 
+#define FREE(type, pointer) reallocate(pointer, sizeof(type), 0)
+
 typedef struct {
   Obj *objects;
 } MemoryManager;

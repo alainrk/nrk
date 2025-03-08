@@ -1,5 +1,7 @@
 
 #include "memory.h"
+#include "object.h"
+#include "value.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -12,6 +14,26 @@ void freeMemoryManager(MemoryManager *mm) {
   // TODO: Probably there will be other things to cleanup here if it gets more
   // complex.
   free(mm);
+}
+
+void freeObject(struct Obj *obj) {
+  switch (obj->type) {
+  case OBJ_STRING: {
+    ObjString *str = (ObjString *)obj;
+    FREE_ARR(char, str->str, str->length + 1);
+    FREE(ObjString, obj);
+    break;
+  }
+  }
+}
+
+void freeObjects(MemoryManager *mm) {
+  Obj *curr = mm->objects;
+  while (curr != NULL) {
+    Obj *next = curr->next;
+    freeObject(curr);
+    curr = next;
+  }
 }
 
 void *reallocate(void *p, size_t oldSize, size_t newSize) {
