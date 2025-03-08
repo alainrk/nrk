@@ -7,9 +7,9 @@ The language is inspired by Bob Nystrom's ["Crafting Interpreters"](https://craf
 
 - **Bytecode Virtual Machine**: Executes instructions efficiently with a stack-based architecture
 - **C99 Implementation**: Written in standard C99 for maximum portability
-- **REPL**: Interactive Read-Eval-Print Loop for quick testing and experimentation
+- **REPL**: Interactive Read-Eval-Print Loop with history persistence and line editing
 - **File Execution**: Run `nrk` script files directly
-- **Expression Evaluation**: Currently supports arithmetic expressions
+- **Expression Evaluation**: Currently supports arithmetic expressions and string operations
 
 ## Current Implementation
 
@@ -18,6 +18,7 @@ The language currently supports:
 - Basic arithmetic operations (`+`, `-`, `*`, `/`)
 - Comparison operations (`==`, `!=`, `>`, `<`, `>=`, `<=`)
 - Numeric literals
+- String literals and concatenation
 - Unary negation
 - Boolean values (`true`, `false`)
 - Logical negation (`!`)
@@ -27,10 +28,12 @@ The language currently supports:
 Additional custom features implemented in `nrk`:
 
 - Template (and nested!) strings (`` `This is a ${${"nested"} str}} with ${1+1} levels of nesting.` ``)
+- String operations (concatenation with `+`)
 - Extended constant pool (via `OP_CONSTANT_LONG` for more than 256 constants)
-- Tagged value representation (numbers, booleans, nil)
+- Tagged value representation (numbers, booleans, nil, strings)
 - Runtime type checking
-- Advanced REPL with arrow key navigation and command history
+- Advanced REPL with arrow key navigation, command history, and persistent history across sessions
+- Memory management with garbage collection foundations
 
 ## Project Structure
 
@@ -38,9 +41,11 @@ Additional custom features implemented in `nrk`:
 - **Compiler**: Turns source code into bytecode
 - **Scanner**: Tokenizes source code for the compiler
 - **Chunk**: Represents bytecode and related metadata
-- **Value**: Represents runtime values (numbers, booleans, nil)
+- **Value**: Represents runtime values (numbers, booleans, nil, strings)
+- **Object**: Manages heap-allocated objects like strings
+- **Memory**: Handles memory allocation, reallocation, and garbage collection
 - **Debug**: Tools for inspecting bytecode and execution
-- **REPL**: Interactive environment with history and line editing
+- **REPL**: Interactive environment with history, line editing, and history persistence
 
 ## Building and Running
 
@@ -94,12 +99,24 @@ Comparison operations:
 6 <= 7     // true
 ```
 
+String operations:
+
+```go
+"Hello, " + "world!" // "Hello, world!"
+```
+
 ## Development Status
 
-`nrk` is currently in early development with version v0.0.1. The focus has been on implementing the core bytecode VM, scanner, and compiler for expressions. Future plans include:
+`nrk` is currently in early development with version v0.0.1. Recent implementations include:
+
+- String literals and string operations
+- Memory management infrastructure
+- REPL with persistent history
+- Foundation for garbage collection
+
+Future plans include:
 
 - Variables and assignment
-- String support and operations
 - Control flow (if/else, loops)
 - Functions and closures
 - Classes and inheritance
