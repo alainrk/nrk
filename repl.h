@@ -4,6 +4,8 @@
 #define REPL_HISTORY_MAX (1 << 8)
 #define REPL_LINE_MAX (1 << 10)
 
+#define HISTORY_FILE_PATH "/tmp/nrklang_repl_history_log"
+
 #define ESC '\x1b'
 #define CTRL_D 4
 #define BACKSPACE 127

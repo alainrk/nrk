@@ -1,10 +1,13 @@
 #include "repl.h"
 #include "common.h"
 #include "vm.h"
+#include <errno.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -76,9 +79,91 @@ static void render_line(const InputLine *line) {
   }
 }
 
+// Load history from file to history struct
+static void history_load_from_file(History *history) {
+  FILE *file = fopen(HISTORY_FILE_PATH, "r");
+  if (file == NULL) {
+    // File doesn't exist or can't be opened, which is fine for first run
+    return;
+  }
+
+  // Lock the file for reading
+  if (flock(fileno(file), LOCK_SH) == -1) {
+    fclose(file);
+    return;
+  }
+
+  // Count lines in file to determine how many to load
+  long lines_count = 0;
+  char count_buffer[REPL_LINE_MAX];
+  while (fgets(count_buffer, sizeof(count_buffer), file) != NULL) {
+    lines_count++;
+  }
+
+  // Reset file position to beginning
+  rewind(file);
+
+  // If file has more entries than REPL_HISTORY_MAX, skip early entries
+  if (lines_count > REPL_HISTORY_MAX) {
+    long skip_lines = lines_count - REPL_HISTORY_MAX;
+    for (long i = 0; i < skip_lines; i++) {
+      if (fgets(count_buffer, sizeof(count_buffer), file) == NULL) {
+        break;
+      }
+    }
+  }
+
+  // Load entries into history
+  history->count = 0;
+  while (history->count < REPL_HISTORY_MAX &&
+         fgets(history->entries[history->count], REPL_LINE_MAX, file) != NULL) {
+    // Remove trailing newline if present
+    size_t len = strlen(history->entries[history->count]);
+    if (len > 0 && history->entries[history->count][len - 1] == '\n') {
+      history->entries[history->count][len - 1] = '\0';
+    }
+    history->count++;
+  }
+
+  // Set current position to end of history
+  history->current = history->count;
+
+  // Unlock and close the file
+  flock(fileno(file), LOCK_UN);
+  fclose(file);
+}
+
+// Append a line to history file
+static void history_append_to_file(const char *line) {
+  if (strlen(line) == 0) {
+    return;
+  }
+
+  FILE *file = fopen(HISTORY_FILE_PATH, "a");
+  if (file == NULL) {
+    return;
+  }
+
+  // Lock the file for writing
+  if (flock(fileno(file), LOCK_EX) == -1) {
+    fclose(file);
+    return;
+  }
+
+  // Append the line with a newline
+  fprintf(file, "%s\n", line);
+
+  // Unlock and close the file
+  flock(fileno(file), LOCK_UN);
+  fclose(file);
+}
+
 static void history_add(History *history, const char *line) {
   if (strlen(line) == 0)
     return;
+
+  // Append to file first
+  history_append_to_file(line);
 
   if (history->count < REPL_HISTORY_MAX) {
     strncpy(history->entries[history->count], line, REPL_LINE_MAX - 1);
@@ -203,6 +288,9 @@ static void handle_regular_input(REPLState *state, char c) {
 void repl() {
   REPLState state = {0};
   state.vm = initVM();
+
+  // Load history from file
+  history_load_from_file(&state.history);
 
   printf("\nWelcome to nrk v%s.\n", NRK_VERSION);
   configure_terminal(&state);
