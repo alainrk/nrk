@@ -41,7 +41,7 @@ static void runFile(const char *path) {
 
   char *source = readFile(path);
 
-  printf("=== src ===\n%s\n===========\n", source);
+  printf("=== src ===\n%s\n=== end src ===\n", source);
 
   InterpretResult res = interpret(vm, source);
   free(source);
@@ -54,7 +54,14 @@ static void runFile(const char *path) {
   freeVM(vm);
 }
 
-void testInterpreter(int argc, char **argv) {
+int main(int argc, char **argv) {
+  // testResetStack();
+  // testLongConst();
+  // testAdd();
+  // testArithmetics();
+  // testNegate();
+  // return 0;
+
   if (argc == 1) {
     repl();
   } else if (argc == 2) {
@@ -63,16 +70,6 @@ void testInterpreter(int argc, char **argv) {
     fprintf(stderr, "Usage: nrk [path/file.nrk]\n\n");
     exit(64);
   }
-}
-
-int main(int argc, char **argv) {
-  // testResetStack();
-  // testLongConst();
-  // testAdd();
-  // testArithmetics();
-  // testNegate();
-
-  testInterpreter(argc, argv);
 
   return 0;
 }
