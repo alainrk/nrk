@@ -33,10 +33,13 @@ struct Obj {
   Obj *next;
 };
 
+// ObjString uses Flexible Array Member pattern to be more performant, allowing
+// not to have two separate memory allocation (obj and str).
 struct ObjString {
   Obj obj;
   int length;
-  char *str;
+  // Flexible array member: must be at the end.
+  char str[];
 };
 
 ObjString *copyString(MemoryManager *mm, const char *str, int length);

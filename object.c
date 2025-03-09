@@ -20,20 +20,46 @@ Obj *allocateObject(MemoryManager *mm, size_t size, ObjType type) {
   return obj;
 }
 
-ObjString *allocateString(MemoryManager *mm, char *chars, int length) {
-  ObjString *string = ALLOCATE_OBJ(mm, ObjString, OBJ_STRING);
+// Approach not using Flexibile Array Member (FAM).
+// ObjString *allocateString(MemoryManager *mm, char *chars, int length) {
+//   ObjString *string = ALLOCATE_OBJ(mm, ObjString, OBJ_STRING);
+//   string->length = length;
+//   string->str = chars;
+//   return string;
+// }
+//
+// ObjString *copyString(MemoryManager *mm, const char *str, int length) {
+//   // Allocating and copying over the content, ObjString owns the string on
+//   the
+//   // heap, can free it without consequences and so on.
+//   char *heapChars = ALLOCATE(char, length + 1);
+//   memcpy(heapChars, str, length);
+//   heapChars[length] = '\0';
+//   return allocateString(mm, heapChars, length);
+// }
+
+// Uses Flexibile Array Member, allocating space for ObjString size + the length
+// of the FAM.
+ObjString *allocateString(MemoryManager *mm, const char *chars, int length) {
+  ObjString *string = (ObjString *)reallocate(
+      NULL, 0, sizeof(ObjString) + sizeof(char) * (length + 1));
+
   string->length = length;
-  string->str = chars;
+
+  memcpy(string->str, chars, length);
+  string->str[length] = '\0';
+
+  // Garbage collector management.
+  // We have to do it here as because of FAM we're not passing by
+  // allocateObject().
+  ((Obj *)string)->next = mm->objects;
+  mm->objects = (Obj *)string;
+
   return string;
 }
 
 ObjString *copyString(MemoryManager *mm, const char *str, int length) {
-  // Allocating and copying over the content, ObjString owns the string on the
-  // heap, can free it without consequences and so on.
-  char *heapChars = ALLOCATE(char, length + 1);
-  memcpy(heapChars, str, length);
-  heapChars[length] = '\0';
-  return allocateString(mm, heapChars, length);
+  return allocateString(mm, str, length);
 }
 
 void printObject(Value value) {

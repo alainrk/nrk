@@ -19,9 +19,14 @@ void freeMemoryManager(MemoryManager *mm) {
 void freeObject(struct Obj *obj) {
   switch (obj->type) {
   case OBJ_STRING: {
-    ObjString *str = (ObjString *)obj;
-    FREE_ARR(char, str->str, str->length + 1);
-    FREE(ObjString, obj);
+    FREE(Obj, obj);
+    // Using Flexible Array Member, we don't need to do this anymore as the
+    // free() must be called on the pointer returned on the pointer returned by
+    // the single malloc() we do.
+    //
+    // ObjString *str = (ObjString *)obj;
+    // FREE_ARR(char, str->str, str->length + 1);
+    // FREE(ObjString, obj);
     break;
   }
   }
