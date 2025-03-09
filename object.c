@@ -1,6 +1,7 @@
 #include "object.h"
 #include "memory.h"
 #include "value.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -40,7 +41,8 @@ Obj *allocateObject(MemoryManager *mm, size_t size, ObjType type) {
 
 // Uses Flexibile Array Member, allocating space for ObjString size + the length
 // of the FAM.
-ObjString *allocateString(MemoryManager *mm, const char *chars, int length) {
+ObjString *allocateString(MemoryManager *mm, const char *chars, int length,
+                          uint32_t hash) {
   // Calculate the size needed for both the ObjString and FAM (char array)
   size_t allocSize = sizeof(ObjString) + length + 1; // +1 for null terminator
 
@@ -51,12 +53,25 @@ ObjString *allocateString(MemoryManager *mm, const char *chars, int length) {
   string->length = length;
   memcpy(string->str, chars, length);
   string->str[length] = '\0';
+  string->hash = hash;
 
   return string;
 }
 
+// FNV-1a Hash function, just one of the shortest and simple existing.
+// TODO: Research if anything better/faster/nicer exist.
+uint32_t hashString(const char *str, int length) {
+  uint32_t hash = 2166136261u;
+  for (int i = 0; i < length; i++) {
+    hash ^= (uint8_t)str[i];
+    hash *= 16777619;
+  }
+  return hash;
+}
+
 ObjString *copyString(MemoryManager *mm, const char *str, int length) {
-  return allocateString(mm, str, length);
+  uint32_t hash = hashString(str, length);
+  return allocateString(mm, str, length, hash);
 }
 
 void printObject(Value value) {
@@ -73,6 +88,6 @@ void printObject(Value value) {
 // It needs to be used only when the ownership of the passed in string is
 // already under control of who allocates ObjString.
 ObjString *takeString(MemoryManager *mm, char *str, int length) {
-  ObjString *s = allocateString(mm, str, length);
-  return s;
+  uint32_t hash = hashString(str, length);
+  return allocateString(mm, str, length, hash);
 }

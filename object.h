@@ -38,6 +38,7 @@ struct Obj {
 struct ObjString {
   Obj obj;
   int length;
+  uint32_t hash;
   // Flexible array member: must be at the end.
   char str[];
 };
