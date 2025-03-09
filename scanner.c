@@ -203,6 +203,10 @@ Token makeToken(Scanner *scanner, TokenType t) {
   token.length = (int)(scanner->curr - scanner->start);
   token.line = scanner->line;
 
+#ifdef DEBUG_SCAN_EXECUTION
+  printf("makeToken(%s)\n", tokenTypeToString(token.type));
+#endif
+
   return token;
 }
 
@@ -369,8 +373,6 @@ Token scanToken(Scanner *scanner) {
   }
 
   char c = advance(scanner);
-
-  // printf("Char: %c\n", c);
 
   if (isAlpha(c)) {
     return identifier(scanner);
