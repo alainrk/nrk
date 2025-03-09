@@ -41,19 +41,16 @@ Obj *allocateObject(MemoryManager *mm, size_t size, ObjType type) {
 // Uses Flexibile Array Member, allocating space for ObjString size + the length
 // of the FAM.
 ObjString *allocateString(MemoryManager *mm, const char *chars, int length) {
-  ObjString *string = (ObjString *)reallocate(
-      NULL, 0, sizeof(ObjString) + sizeof(char) * (length + 1));
+  // Calculate the size needed for both the ObjString and FAM (char array)
+  size_t allocSize = sizeof(ObjString) + length + 1; // +1 for null terminator
 
+  // Allocate a single contiguous block of memory
+  ObjString *string = (ObjString *)allocateObject(mm, allocSize, OBJ_STRING);
+
+  // Copy the characters into the FAM and set objstring length.
   string->length = length;
-
   memcpy(string->str, chars, length);
   string->str[length] = '\0';
-
-  // Garbage collector management.
-  // We have to do it here as because of FAM we're not passing by
-  // allocateObject().
-  ((Obj *)string)->next = mm->objects;
-  mm->objects = (Obj *)string;
 
   return string;
 }
@@ -75,7 +72,7 @@ void printObject(Value value) {
 
 // It needs to be used only when the ownership of the passed in string is
 // already under control of who allocates ObjString.
-ObjString *takeString(MemoryManager *mm, char *str, int len) {
-  ObjString *s = allocateString(mm, str, len);
+ObjString *takeString(MemoryManager *mm, char *str, int length) {
+  ObjString *s = allocateString(mm, str, length);
   return s;
 }
