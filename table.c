@@ -24,14 +24,32 @@ void freeTable(Table *table) {
 // capacity.
 Entry *findEntry(Entry *entries, int cap, ObjString *key) {
   uint32_t index = key->hash % cap;
+  Entry *tombstone = NULL;
 
   for (;;) {
     Entry *entry = &entries[index];
-    if (entry->key == key || entry->key == NULL) {
+
+    // Key found, return the entry.
+    if (entry->key == key)
       return entry;
+
+    // Empty entry, go ahead
+    if (entry->key == NULL) {
+      // If no value set, check first if we have a tombstone saved during the
+      // linear probe so far.
+      if (IS_NIL(entry->value)) {
+        // If we had met a tombstone, return it (e.g. it will be the correct
+        // entry where to put the element), otherwise return the current spot as
+        // the valid one.
+        return tombstone != NULL ? tombstone : entry;
+      }
+
+      // Set the tombstone if we haven't already since we are in an empty entry.
+      if (tombstone == NULL)
+        tombstone = entry;
     }
 
-    // Probing (linear)
+    // Linear probing, going ahead.
     index = (index + 1) % cap;
   }
 }
@@ -64,6 +82,9 @@ void adjustCapacity(Table *table, int cap) {
   // If this is an existing table, we need to reposition all the existing
   // entries, as they now would have different position, being the capacity
   // changed.
+  //
+  // NOTE: Since we don't copy over the tombstones, we recalculate the count.
+  table->count = 0;
   for (int i = 0; i < table->cap; i++) {
     Entry *entry = &table->entries[i];
     if (entry->key == NULL)
@@ -72,6 +93,7 @@ void adjustCapacity(Table *table, int cap) {
     Entry *dest = findEntry(entries, cap, entry->key);
     dest->key = entry->key;
     dest->value = entry->value;
+    table->count++;
   }
 
   FREE_ARR(Entry, table->entries, table->cap);
@@ -84,10 +106,12 @@ bool tableSet(Table *table, ObjString *key, Value value) {
   if (table->count + 1 > table->cap * TABLE_MAX_LOAD) {
     adjustCapacity(table, GROW_CAP(table->cap));
   }
+
   Entry *entry = findEntry(table->entries, table->cap, key);
 
   bool isNew = entry->key == NULL;
-  if (isNew)
+  // Tombstone management (see comment in table.h on why they're counted).
+  if (isNew && IS_NIL(entry->value))
     table->count++;
 
   // Upsert info
