@@ -10,12 +10,6 @@ MemoryManager *initMemoryManager() {
   return mm;
 }
 
-void freeMemoryManager(MemoryManager *mm) {
-  // TODO: Probably there will be other things to cleanup here if it gets more
-  // complex.
-  free(mm);
-}
-
 void freeObject(struct Obj *obj) {
   switch (obj->type) {
   case OBJ_STRING: {
@@ -39,6 +33,11 @@ void freeObjects(MemoryManager *mm) {
     freeObject(curr);
     curr = next;
   }
+}
+
+void freeMemoryManager(MemoryManager *mm) {
+  freeObjects(mm);
+  free(mm);
 }
 
 void *reallocate(void *p, size_t oldSize, size_t newSize) {
