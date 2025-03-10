@@ -29,6 +29,7 @@ Additional custom features implemented in `nrk`:
 
 - Template (and nested!) strings (`` `This is a ${${"nested"} str}} with ${1+1} levels of nesting.` ``)
 - String operations (concatenation with `+`)
+- String interning for efficient string storage and comparison
 - Extended constant pool (via `OP_CONSTANT_LONG` for more than 256 constants)
 - Tagged value representation (numbers, booleans, nil, strings)
 - Runtime type checking
@@ -110,7 +111,8 @@ String operations:
 `nrk` is currently in early development with version v0.0.1. Recent implementations include:
 
 - String literals and string operations
-- Memory management infrastructure
+- String interning with hash table implementation
+- Memory management infrastructure with Flexible Array Members (FAM)
 - REPL with persistent history
 - Foundation for garbage collection
 
@@ -127,4 +129,5 @@ The interpreter includes several debugging features that can be enabled by uncom
 
 - `DEBUG_PRINT_CODE`: Disassembles and prints bytecode after compilation
 - `DEBUG_TRACE_EXECUTION`: Traces VM execution step by step, showing stack state
+- `DEBUG_SCAN_EXECUTION`: Shows detailed scanning process information
 - `DEBUG_COMPILE_EXECUTION`: Provides detailed compilation process logs
