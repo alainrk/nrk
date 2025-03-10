@@ -61,10 +61,14 @@ bool valuesEqual(Value a, Value b) {
   case VAL_NIL:
     return true;
   case VAL_OBJ: {
-    ObjString *as = AS_STRING(a);
-    ObjString *bs = AS_STRING(b);
-    return as->length == bs->length &&
-           memcmp(as->str, bs->str, as->length) == 0;
+    // Old Method:
+    // ObjString *as = AS_STRING(a);
+    // ObjString *bs = AS_STRING(b);
+    // return as->length == bs->length &&
+    //        memcmp(as->str, bs->str, as->length) == 0;
+
+    // Now we can do this with strings as they are interned.
+    return AS_OBJ(a) == AS_OBJ(b);
   }
   default:
     return false;
