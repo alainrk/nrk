@@ -4,6 +4,7 @@
 #include "chunk.h"
 #include "compiler.h"
 #include "memory.h"
+#include "table.h"
 #include "value.h"
 
 typedef struct {
@@ -22,6 +23,7 @@ typedef struct {
   // Pointer to the first empty item (allowed in C) i.e. the next one to fill
   Value *stackTop;
 
+  // VM's compiler instance
   Compiler *compiler;
 
   // Garbage collector management

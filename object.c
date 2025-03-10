@@ -1,5 +1,6 @@
 #include "object.h"
 #include "memory.h"
+#include "table.h"
 #include "value.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -55,6 +56,10 @@ ObjString *allocateString(MemoryManager *mm, const char *chars, int length,
   string->str[length] = '\0';
   string->hash = hash;
 
+  // Intern the string (all of them)
+  // NOTE: We could choose to only intern some based on some logic
+  tableSet(&mm->strings, string, NIL_VAL);
+
   return string;
 }
 
@@ -71,6 +76,11 @@ uint32_t hashString(const char *str, int length) {
 
 ObjString *copyString(MemoryManager *mm, const char *str, int length) {
   uint32_t hash = hashString(str, length);
+
+  ObjString *interned = tableFindString(&mm->strings, str, length, hash);
+  if (interned != NULL)
+    return interned;
+
   return allocateString(mm, str, length, hash);
 }
 
@@ -85,9 +95,19 @@ void printObject(Value value) {
   }
 }
 
-// It needs to be used only when the ownership of the passed in string is
-// already under control of who allocates ObjString.
+// Takes ownership of str.
+// It's used for example in concatenate, to create an ObjString from a given
+// char*. This means we have to clean it up if returning an already interned
+// string.
 ObjString *takeString(MemoryManager *mm, char *str, int length) {
   uint32_t hash = hashString(str, length);
+
+  ObjString *interned = tableFindString(&mm->strings, str, length, hash);
+  if (interned != NULL) {
+    // Free the passed in string.
+    FREE_ARR(char, str, length + 1);
+    return interned;
+  }
+
   return allocateString(mm, str, length, hash);
 }

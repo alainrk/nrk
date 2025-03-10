@@ -99,9 +99,11 @@ static void concatenate(VM *vm) {
 
   int len = a->length + b->length;
   char *str = ALLOCATE(char, len + 1);
+
   memcpy(str, a->str, a->length);
   memcpy(str + a->length, b->str, b->length);
   str[len] = '\0';
+
   ObjString *c = takeString(vm->memoryManager, str, len);
   push(vm, OBJ_VAL(c));
 }

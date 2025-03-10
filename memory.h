@@ -2,6 +2,7 @@
 #define nrk_memory_h
 
 #include "common.h"
+#include "table.h"
 #include "value.h"
 
 #define GROW_CAP(cap) ((cap) < 8 ? 8 : (cap) * 2)
@@ -17,7 +18,11 @@
 #define FREE(type, pointer) reallocate(pointer, sizeof(type), 0)
 
 typedef struct {
+  // Garbage collector management on created objects
   Obj *objects;
+
+  // Interned strings
+  Table strings;
 } MemoryManager;
 
 MemoryManager *initMemoryManager();

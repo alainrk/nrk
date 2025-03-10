@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void initTable(Table *table) {
   table->cap = 0;
@@ -141,5 +142,34 @@ void tableAddAll(Table *from, Table *to) {
     if (e->key == NULL)
       continue;
     tableSet(to, e->key, e->value);
+  }
+}
+
+ObjString *tableFindString(Table *table, const char *str, int length,
+                           uint32_t hash) {
+  if (table->count == 0)
+    return NULL;
+
+  uint32_t index = hash % table->cap;
+
+  for (;;) {
+    Entry *entry = &table->entries[index];
+
+    // Keep looping for linear probing, until the element with the correct key
+    // is found, or we're on a tombstone of a previously removed element.
+    if (entry->key == NULL) {
+      // Stop if this is an empty non-tombstone element, i.e. the string (key)
+      // is not present in the hashset.
+      if (IS_NIL(entry->value))
+        return NULL;
+      // Otherwise keep going with next index.
+    }
+    // Char-by-char comparison necessary at this point. Is string is found,
+    // return it.
+    else if (entry->key->length == length &&
+             memcmp(entry->key->str, str, length) == 0)
+      return entry->key;
+
+    index = (index + 1) % table->cap;
   }
 }
