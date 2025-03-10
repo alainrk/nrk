@@ -69,7 +69,7 @@ bool tableGet(Table *table, ObjString *key, Value *value) {
 
 void adjustCapacity(Table *table, int cap) {
   Entry *entries = ALLOCATE(Entry, cap);
-  if (table->entries == NULL) {
+  if (entries == NULL) {
     fprintf(stderr, "Not enough memory to adjust table capacity.\n");
     exit(74);
   }
