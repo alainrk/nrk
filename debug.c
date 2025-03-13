@@ -55,6 +55,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return simpleInstruction("__OP_STACK__RESET", offset);
   case OP_NEGATE:
     return simpleInstruction("OP_NEGATE", offset);
+  case OP_PRINT:
+    return simpleInstruction("OP_PRINT", offset);
   case OP_ADD:
     return simpleInstruction("OP_ADD", offset);
   case OP_SUBTRACT:

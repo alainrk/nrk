@@ -20,6 +20,9 @@ static void binary(Compiler *compiler, Chunk *chunk);
 static void number(Compiler *compiler, Chunk *chunk);
 static void literal(Compiler *compiler, Chunk *chunk);
 static void string(Compiler *compiler, Chunk *chunk);
+static void expression(Compiler *compiler, Chunk *chunk);
+static void declaration(Compiler *compiler, Chunk *chunk);
+static void statement(Compiler *compiler, Chunk *chunk);
 static ParseRule *getRule(TokenType type);
 
 ParseRule rules[] = {
@@ -188,6 +191,17 @@ static void consume(Compiler *compiler, TokenType type, const char *message) {
   }
 
   errorAtCurrent(compiler->parser, message);
+}
+
+static bool check(Compiler *compiler, TokenType type) {
+  return compiler->parser->curr.type == type;
+}
+
+static bool match(Compiler *compiler, TokenType type) {
+  if (!check(compiler, type))
+    return false;
+  advance(compiler);
+  return true;
 }
 
 static void emitBytes(Compiler *compiler, Chunk *chunk, int count, ...) {
@@ -424,6 +438,22 @@ static void expression(Compiler *compiler, Chunk *chunk) {
 #endif
 }
 
+static void printStatement(Compiler *compiler, Chunk *chunk) {
+  expression(compiler, chunk);
+  consume(compiler, TOKEN_SEMICOLON, "Expect ';' after value.");
+  emitBytes(compiler, chunk, 1, OP_PRINT);
+}
+
+static void declaration(Compiler *compiler, Chunk *chunk) {
+  statement(compiler, chunk);
+}
+
+static void statement(Compiler *compiler, Chunk *chunk) {
+  if (match(compiler, TOKEN_PRINT)) {
+    printStatement(compiler, chunk);
+  }
+}
+
 // Prefix expression: We assume "(" has already been consumed.
 static void grouping(Compiler *compiler, Chunk *chunk) {
 
@@ -544,8 +574,14 @@ bool compile(Compiler *compiler, const char *source, Chunk *chunk) {
   compiler->parser->panicMode = false;
 
   advance(compiler);
-  expression(compiler, chunk);
-  consume(compiler, TOKEN_EOF, "Expect end of expression.");
+
+  while (!match(compiler, TOKEN_EOF)) {
+    declaration(compiler, chunk);
+  }
+
+  // expression(compiler, chunk);
+  // consume(compiler, TOKEN_EOF, "Expect end of expression.");
+
   endCompiler(compiler, chunk);
 
 #ifdef DEBUG_COMPILE_EXECUTION

@@ -131,3 +131,8 @@ The interpreter includes several debugging features that can be enabled by uncom
 - `DEBUG_TRACE_EXECUTION`: Traces VM execution step by step, showing stack state
 - `DEBUG_SCAN_EXECUTION`: Shows detailed scanning process information
 - `DEBUG_COMPILE_EXECUTION`: Provides detailed compilation process logs
+
+## TODO
+
+- Extend table's support to other immutable objects other than strings as keys.
+- Refactor `Chunk* chunk` been passed around in `compiler.c`, putting it into the Compiler itself.

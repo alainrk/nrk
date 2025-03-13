@@ -183,7 +183,6 @@ static InterpretResult run(VM *vm) {
       break;
     }
     case OP_RETURN: {
-      printValue(pop(vm), "Return: ", "\n");
       return INTERPRET_OK;
     }
     case OP_CONSTANT: {
@@ -233,6 +232,10 @@ static InterpretResult run(VM *vm) {
     }
     case OP_GREATER_EQUAL: {
       BINARY_OP(BOOL_VAL, >=);
+      break;
+    }
+    case OP_PRINT: {
+      printValue(pop(vm), "", "\n");
       break;
     }
     }
