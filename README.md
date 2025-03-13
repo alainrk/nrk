@@ -24,6 +24,7 @@ The language currently supports:
 - Logical negation (`!`)
 - `nil` value
 - Type checking for operations
+- Print statements (`print "Hello, World!";`)
 
 Additional custom features implemented in `nrk`:
 
@@ -35,6 +36,7 @@ Additional custom features implemented in `nrk`:
 - Runtime type checking
 - Advanced REPL with arrow key navigation, command history, and persistent history across sessions
 - Memory management with garbage collection foundations
+- Hash table implementation for string interning
 
 ## Project Structure
 
@@ -47,6 +49,7 @@ Additional custom features implemented in `nrk`:
 - **Memory**: Handles memory allocation, reallocation, and garbage collection
 - **Debug**: Tools for inspecting bytecode and execution
 - **REPL**: Interactive environment with history, line editing, and history persistence
+- **Table**: Hash table implementation for string interning and future variable lookup
 
 ## Building and Running
 
@@ -106,6 +109,13 @@ String operations:
 "Hello, " + "world!" // "Hello, world!"
 ```
 
+Print statements:
+
+```go
+print "Hello, world!";
+print 2 + 2;
+```
+
 ## Development Status
 
 `nrk` is currently in early development with version v0.0.1. Recent implementations include:
@@ -113,8 +123,9 @@ String operations:
 - String literals and string operations
 - String interning with hash table implementation
 - Memory management infrastructure with Flexible Array Members (FAM)
-- REPL with persistent history
+- REPL with persistent history across sessions
 - Foundation for garbage collection
+- Print statements
 
 Future plans include:
 
