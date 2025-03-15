@@ -258,8 +258,10 @@ InterpretResult interpretChunk(VM *vm, Chunk *chunk) {
 InterpretResult interpret(VM *vm, const char *source) {
   Chunk chunk;
   initChunk(&chunk);
+  // TODO: Is this the right place to set the compiler's currentChunk?
+  vm->compiler->currentChunk = &chunk;
 
-  if (!compile(vm->compiler, source, &chunk)) {
+  if (!compile(vm->compiler, source)) {
     freeChunk(&chunk);
     return INTERPRET_COMPILE_ERROR;
   }

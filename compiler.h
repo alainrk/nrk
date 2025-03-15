@@ -38,9 +38,10 @@ typedef struct {
   MemoryManager *memoryManager;
   Scanner *scanner;
   Parser *parser;
+  Chunk *currentChunk;
 } Compiler;
 
-typedef void (*ParseFn)(Compiler *compiler, Chunk *chunk);
+typedef void (*ParseFn)(Compiler *compiler);
 
 // Given an expression starting with a token, knowing its type we need to know:
 typedef struct {
@@ -55,7 +56,7 @@ typedef struct {
 Compiler *initCompiler(MemoryManager *mm);
 void freeCompiler(Compiler *compiler);
 
-bool compile(Compiler *compiler, const char *source, Chunk *chunk);
+bool compile(Compiler *compiler, const char *source);
 const char *precedenceTypeToString(Precedence type);
 
 #endif
