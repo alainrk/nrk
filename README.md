@@ -146,4 +146,4 @@ The interpreter includes several debugging features that can be enabled by uncom
 ## TODO
 
 - Extend table's support to other immutable objects other than strings as keys.
-- Refactor `Chunk* chunk` been passed around in `compiler.c`, putting it into the Compiler itself.
+- In compiler avoid multiple pointer indirections with compiler->parser/scanner if used in critical paths and just bring it to a var inside the function.

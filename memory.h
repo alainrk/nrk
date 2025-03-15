@@ -23,6 +23,9 @@ typedef struct {
 
   // Interned strings
   Table strings;
+
+  // Global variables
+  Table globals;
 } MemoryManager;
 
 MemoryManager *initMemoryManager();

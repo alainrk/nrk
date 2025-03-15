@@ -5,6 +5,7 @@
 #include "scanner.h"
 #include "value.h"
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -230,30 +231,54 @@ static void emitBytes(Compiler *compiler, int count, ...) {
 #endif
 }
 
+// Emit the correct number of bytes depending on how many there are for the
+// given constant index.
+static void emitConstantIndex(Compiler *compiler, ConstantIndex index,
+                              OpCode codeShort, OpCode codeLong) {
+  if (index.isLong) {
+    emitBytes(compiler, 4, codeLong, index.bytes[0], index.bytes[1],
+              index.bytes[2]);
+    return;
+  }
+
+  emitBytes(compiler, 2, codeShort, index.bytes[0]);
+}
+
 static void emitReturn(Compiler *compiler) {
   emitBytes(compiler, 1, OP_RETURN);
 }
 
-static void emitConstant(Compiler *compiler, Value v) {
+ConstantIndex makeConstant(Compiler *compiler, Value v) {
+  ConstantIndex cidx;
+  // Avoid compiler complaining.
+  cidx.isLong = false;
+
   int idx = addConstant(compiler->currentChunk, v);
 
   if (idx <= UINT8_MAX) {
-    emitBytes(compiler, 2, OP_CONSTANT, idx);
-    return;
+    cidx.bytes[0] = idx;
+    cidx.isLong = false;
+    return cidx;
   }
 
   if (idx > 0x00FFFFFE) {
     error(compiler->parser, "Too many constants in one chunk.");
-    return;
+    return cidx;
   }
 
   // Use OP_CONSTANT_LONG and write the 24-bit (3 bytes) applying AND bit by bit
   // for the relevant part and get rid of the rest
-  u_int8_t b1 = (idx & 0xff0000) >> 16;
-  u_int8_t b2 = (idx & 0x00ff00) >> 8;
-  u_int8_t b3 = (idx & 0x0000ff);
+  cidx.bytes[0] = (idx & 0xff0000) >> 16;
+  cidx.bytes[1] = (idx & 0x00ff00) >> 8;
+  cidx.bytes[2] = (idx & 0x0000ff);
+  cidx.isLong = true;
 
-  emitBytes(compiler, 4, OP_CONSTANT_LONG, b1, b2, b3);
+  return cidx;
+}
+
+static void emitConstant(Compiler *compiler, Value v) {
+  ConstantIndex cidx = makeConstant(compiler, v);
+  emitConstantIndex(compiler, cidx, OP_CONSTANT, OP_CONSTANT_LONG);
 }
 
 // Parses the expression with given precedence or higher.
@@ -323,6 +348,16 @@ static void parsePrecedence(Compiler *compiler, Precedence precedence) {
          strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent));
   debugIndent--;
 #endif
+}
+
+ConstantIndex identifierConstant(Compiler *compiler, Token *name) {
+  return makeConstant(compiler, OBJ_VAL(copyString(compiler->memoryManager,
+                                                   name->start, name->length)));
+}
+
+ConstantIndex parseVariable(Compiler *compiler, const char *message) {
+  consume(compiler, TOKEN_IDENTIFIER, message);
+  return identifierConstant(compiler, &compiler->parser->prev);
 }
 
 static void endCompiler(Compiler *compiler) {
@@ -435,17 +470,84 @@ static void expression(Compiler *compiler) {
 #endif
 }
 
+static void defineVariable(Compiler *compiler, ConstantIndex variable) {
+  emitConstantIndex(compiler, variable, OP_DEFINE_GLOBAL,
+                    OP_DEFINE_GLOBAL_LONG);
+}
+
+static void varDeclaration(Compiler *compiler) {
+  ConstantIndex global = parseVariable(compiler, "Expect variable name.");
+
+  if (match(compiler, TOKEN_EQUAL)) {
+    // Get the variable value.
+    expression(compiler);
+  } else {
+    // Otherwise empty initialization, set nil.
+    // Syntactic sugar for `var a = nil`;
+    emitBytes(compiler, 1, OP_NIL);
+  }
+
+  consume(compiler, TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+
+  defineVariable(compiler, global);
+}
+
+static void expressionStatement(Compiler *compiler) {
+  expression(compiler);
+  consume(compiler, TOKEN_SEMICOLON, "Expect ';' after value.");
+  emitBytes(compiler, 1, OP_POP);
+}
+
 static void printStatement(Compiler *compiler) {
   expression(compiler);
   consume(compiler, TOKEN_SEMICOLON, "Expect ';' after value.");
   emitBytes(compiler, 1, OP_PRINT);
 }
 
-static void declaration(Compiler *compiler) { statement(compiler); }
+// Synchronization phase, avoid in case of error of propagating.
+// Skip every token until we come to a possible end of statement token.
+static void synchronize(Compiler *compiler) {
+  compiler->parser->panicMode = false;
+
+  while (compiler->parser->curr.type != TOKEN_EOF) {
+    if (compiler->parser->prev.type == TOKEN_SEMICOLON)
+      break;
+    switch (compiler->parser->curr.type) {
+    case TOKEN_CLASS:
+    case TOKEN_FUN:
+    case TOKEN_VAR:
+    case TOKEN_FOR:
+    case TOKEN_IF:
+    case TOKEN_WHILE:
+    case TOKEN_PRINT:
+    case TOKEN_RETURN:
+      // End of statement, return.
+      return;
+      // Do nothing here.
+    default:;
+    }
+
+    advance(compiler);
+  }
+}
+
+static void declaration(Compiler *compiler) {
+  if (match(compiler, TOKEN_VAR)) {
+    varDeclaration(compiler);
+  } else {
+    statement(compiler);
+  }
+
+  if (compiler->parser->panicMode) {
+    synchronize(compiler);
+  }
+}
 
 static void statement(Compiler *compiler) {
   if (match(compiler, TOKEN_PRINT)) {
     printStatement(compiler);
+  } else {
+    expressionStatement(compiler);
   }
 }
 
