@@ -251,18 +251,36 @@ static InterpretResult run(VM *vm) {
       pop(vm);
       break;
     }
-    case OP_DEFINE_GLOBAL: {
-      ObjString *name = READ_STRING();
+    case OP_DEFINE_GLOBAL:
+    case OP_DEFINE_GLOBAL_LONG: {
+      ObjString *name;
+      if (instruction == OP_DEFINE_GLOBAL) {
+        name = READ_STRING();
+      } else {
+        name = READ_STRING_LONG();
+      }
+
       // nrk doesn't check for redefinition of global variables, it just
       // overwrites them. This is also useful in repl sessions.
       tableSet(&vm->memoryManager->globals, name, peek(vm, 0));
       pop(vm);
       break;
     }
-    case OP_DEFINE_GLOBAL_LONG: {
-      ObjString *name = READ_STRING_LONG();
-      tableSet(&vm->memoryManager->globals, name, peek(vm, 0));
-      pop(vm);
+    case OP_GET_GLOBAL:
+    case OP_GET_GLOBAL_LONG: {
+      ObjString *name;
+      if (instruction == OP_GET_GLOBAL) {
+        name = READ_STRING();
+      } else {
+        name = READ_STRING_LONG();
+      }
+
+      Value value;
+      if (!tableGet(&vm->memoryManager->globals, name, &value)) {
+        runtimeError(vm, "Undefined variable %s", name->str);
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      push(vm, value);
       break;
     }
     }

@@ -24,6 +24,7 @@ static void string(Compiler *compiler);
 static void expression(Compiler *compiler);
 static void declaration(Compiler *compiler);
 static void statement(Compiler *compiler);
+static void variable(Compiler *compiler);
 static ParseRule *getRule(TokenType type);
 
 ParseRule rules[] = {
@@ -46,7 +47,7 @@ ParseRule rules[] = {
     [TOKEN_GREATER_EQUAL] = {NULL, binary, PREC_COMPARISON},
     [TOKEN_LESS] = {NULL, binary, PREC_COMPARISON},
     [TOKEN_LESS_EQUAL] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_IDENTIFIER] = {NULL, NULL, PREC_NONE},
+    [TOKEN_IDENTIFIER] = {variable, NULL, PREC_NONE},
     [TOKEN_STRING] = {string, NULL, PREC_NONE},
     // TODO:
     // TOKEN_TEMPL_START,        // Opening "`"
@@ -629,6 +630,15 @@ static void string(Compiler *compiler) {
                OBJ_VAL(copyString(compiler->memoryManager,
                                   compiler->parser->prev.start + 1,
                                   compiler->parser->prev.length - 2)));
+}
+
+static void namedVariable(Compiler *compiler, Token *name) {
+  ConstantIndex cidx = identifierConstant(compiler, name);
+  emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+}
+
+static void variable(Compiler *compiler) {
+  namedVariable(compiler, &compiler->parser->prev);
 }
 
 static void literal(Compiler *compiler) {
