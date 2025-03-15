@@ -9,7 +9,7 @@ The language is inspired by Bob Nystrom's ["Crafting Interpreters"](https://craf
 - **C99 Implementation**: Written in standard C99 for maximum portability
 - **REPL**: Interactive Read-Eval-Print Loop with history persistence and line editing
 - **File Execution**: Run `nrk` script files directly
-- **Expression Evaluation**: Currently supports arithmetic expressions and string operations
+- **Expression Evaluation**: Currently supports arithmetic expressions, string operations, and variables
 
 ## Current Implementation
 
@@ -25,6 +25,7 @@ The language currently supports:
 - `nil` value
 - Type checking for operations
 - Print statements (`print "Hello, World!";`)
+- Variables and variable assignment
 
 Additional custom features implemented in `nrk`:
 
@@ -36,7 +37,7 @@ Additional custom features implemented in `nrk`:
 - Runtime type checking
 - Advanced REPL with arrow key navigation, command history, and persistent history across sessions
 - Memory management with garbage collection foundations
-- Hash table implementation for string interning
+- Hash table implementation for string interning and variable lookup
 
 ## Project Structure
 
@@ -49,7 +50,7 @@ Additional custom features implemented in `nrk`:
 - **Memory**: Handles memory allocation, reallocation, and garbage collection
 - **Debug**: Tools for inspecting bytecode and execution
 - **REPL**: Interactive environment with history, line editing, and history persistence
-- **Table**: Hash table implementation for string interning and future variable lookup
+- **Table**: Hash table implementation for string interning and variable lookup
 
 ## Building and Running
 
@@ -116,10 +117,25 @@ print "Hello, world!";
 print 2 + 2;
 ```
 
+Variables:
+
+```go
+var a = 5;
+var b = 10 * (-2 / 2) + 4;
+print a + b;  // -1
+print b;      // -6
+
+var greeting = "Hello, ";
+var name = "world";
+print greeting + name + "!";  // Hello, world!
+```
+
 ## Development Status
 
-`nrk` is currently in early development with version v0.0.1. Recent implementations include:
+`nrk` is currently in early development with version v0.0.2. Recent implementations include:
 
+- Variable declaration and assignment
+- Enhanced scope handling for global and local variables
 - String literals and string operations
 - String interning with hash table implementation
 - Memory management infrastructure with Flexible Array Members (FAM)
@@ -129,7 +145,6 @@ print 2 + 2;
 
 Future plans include:
 
-- Variables and assignment
 - Control flow (if/else, loops)
 - Functions and closures
 - Classes and inheritance
@@ -145,5 +160,7 @@ The interpreter includes several debugging features that can be enabled by uncom
 
 ## TODO
 
-- Extend table's support to other immutable objects other than strings as keys.
-- Refactor `Chunk* chunk` been passed around in `compiler.c`, putting it into the Compiler itself.
+- Extend table's support to other immutable objects other than strings as keys
+- Add proper error handling for undefined variables
+- Implement block scoping for variables
+- Add support for constants (immutable variables)
