@@ -8,6 +8,7 @@
 MemoryManager *initMemoryManager() {
   MemoryManager *mm = (MemoryManager *)malloc(sizeof(MemoryManager));
   initTable(&mm->strings);
+  initTable(&mm->globals);
   return mm;
 }
 
@@ -39,6 +40,7 @@ void freeObjects(MemoryManager *mm) {
 void freeMemoryManager(MemoryManager *mm) {
   freeObjects(mm);
   freeTable(&mm->strings);
+  freeTable(&mm->globals);
   free(mm);
 }
 

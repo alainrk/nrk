@@ -6,6 +6,12 @@
 #include "scanner.h"
 
 typedef struct {
+  bool isLong;
+  uint8_t bytes[3]; // For short constant, only bytes[0] is used
+                    // For long constant, all three bytes are used
+} ConstantIndex;
+
+typedef struct {
   Token curr;
   Token prev;
 

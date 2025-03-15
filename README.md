@@ -160,7 +160,5 @@ The interpreter includes several debugging features that can be enabled by uncom
 
 ## TODO
 
-- Extend table's support to other immutable objects other than strings as keys
-- Add proper error handling for undefined variables
-- Implement block scoping for variables
-- Add support for constants (immutable variables)
+- Extend table's support to other immutable objects other than strings as keys.
+- In compiler avoid multiple pointer indirections with compiler->parser/scanner if used in critical paths and just bring it to a var inside the function.

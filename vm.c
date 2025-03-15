@@ -5,6 +5,7 @@
 #include "debug.h"
 #include "memory.h"
 #include "object.h"
+#include "table.h"
 #include "value.h"
 #include <arpa/inet.h>
 #include <stdarg.h>
@@ -113,11 +114,19 @@ static void concatenate(VM *vm) {
 static InterpretResult run(VM *vm) {
 
 #define READ_BYTE() (*vm->ip++)
+
 #define MOVE_BYTES(n) (vm->ip += (n))
+
 #define READ_CONSTANT() (vm->chunk->constants.values[READ_BYTE()])
+
 #define READ_CONSTANT_LONG()                                                   \
   (vm->chunk->constants.values[GET_CONSTANT_LONG_ID(                           \
       vm->chunk, (int)(vm->ip - vm->chunk->code - 1))])
+
+#define READ_STRING() AS_STRING(READ_CONSTANT())
+
+#define READ_STRING_LONG() AS_STRING(READ_CONSTANT_LONG())
+
 // TODO: Handle strings binary operations
 #define BINARY_OP(valueType, op)                                               \
   do {                                                                         \
@@ -238,6 +247,42 @@ static InterpretResult run(VM *vm) {
       printValue(pop(vm), "", "\n");
       break;
     }
+    case OP_POP: {
+      pop(vm);
+      break;
+    }
+    case OP_DEFINE_GLOBAL:
+    case OP_DEFINE_GLOBAL_LONG: {
+      ObjString *name;
+      if (instruction == OP_DEFINE_GLOBAL) {
+        name = READ_STRING();
+      } else {
+        name = READ_STRING_LONG();
+      }
+
+      // nrk doesn't check for redefinition of global variables, it just
+      // overwrites them. This is also useful in repl sessions.
+      tableSet(&vm->memoryManager->globals, name, peek(vm, 0));
+      pop(vm);
+      break;
+    }
+    case OP_GET_GLOBAL:
+    case OP_GET_GLOBAL_LONG: {
+      ObjString *name;
+      if (instruction == OP_GET_GLOBAL) {
+        name = READ_STRING();
+      } else {
+        name = READ_STRING_LONG();
+      }
+
+      Value value;
+      if (!tableGet(&vm->memoryManager->globals, name, &value)) {
+        runtimeError(vm, "Undefined variable %s", name->str);
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      push(vm, value);
+      break;
+    }
     }
   }
 
@@ -245,6 +290,8 @@ static InterpretResult run(VM *vm) {
 #undef MOVE_BYTES
 #undef READ_CONSTANT
 #undef READ_CONSTANT_LONG
+#undef READ_STRING
+#undef READ_STRING_LONG
 #undef BINARY_OP
 }
 
