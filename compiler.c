@@ -15,16 +15,18 @@
 
 int debugIndent = 0;
 
-static void grouping(Compiler *compiler);
-static void unary(Compiler *compiler);
-static void binary(Compiler *compiler);
-static void number(Compiler *compiler);
-static void literal(Compiler *compiler);
-static void string(Compiler *compiler);
+static void grouping(Compiler *compiler, bool canAssign);
+static void unary(Compiler *compiler, bool canAssign);
+static void binary(Compiler *compiler, bool canAssign);
+static void number(Compiler *compiler, bool canAssign);
+static void literal(Compiler *compiler, bool canAssign);
+static void string(Compiler *compiler, bool canAssign);
+static void variable(Compiler *compiler, bool canAssign);
+
 static void expression(Compiler *compiler);
 static void declaration(Compiler *compiler);
 static void statement(Compiler *compiler);
-static void variable(Compiler *compiler);
+
 static ParseRule *getRule(TokenType type);
 
 ParseRule rules[] = {
@@ -326,7 +328,10 @@ static void parsePrecedence(Compiler *compiler, Precedence precedence) {
          precedenceTypeToString(rule->precedence));
 #endif
 
-  rule->prefix(compiler);
+  // variable() should look for and consume the '=' only if it’s in the context
+  // of a low-precedence expression.
+  bool canAssign = precedence <= PREC_ASSIGNMENT;
+  rule->prefix(compiler, canAssign);
 
   // If there is some infix rule, the prefix above might an operand of it.
   // Go ahead until, and only if, the precedence allows it.
@@ -341,7 +346,11 @@ static void parsePrecedence(Compiler *compiler, Precedence precedence) {
            precedenceTypeToString(r->precedence));
 #endif
 
-    r->infix(compiler);
+    r->infix(compiler, canAssign);
+  }
+
+  if (canAssign && match(compiler, TOKEN_EQUAL)) {
+    error(compiler->parser, "Invalid assignment target.");
   }
 
 #ifdef DEBUG_COMPILE_EXECUTION
@@ -373,7 +382,9 @@ static void endCompiler(Compiler *compiler) {
 
 ParseRule *getRule(TokenType t) { return &rules[t]; }
 
-static void binary(Compiler *compiler) {
+static void binary(Compiler *compiler, bool canAssign) {
+  UNUSED(canAssign);
+
   TokenType t = compiler->parser->prev.type;
 
   // Example: 2 * 3 + 4
@@ -553,7 +564,8 @@ static void statement(Compiler *compiler) {
 }
 
 // Prefix expression: We assume "(" has already been consumed.
-static void grouping(Compiler *compiler) {
+static void grouping(Compiler *compiler, bool canAssign) {
+  UNUSED(canAssign);
 
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
@@ -570,7 +582,9 @@ static void grouping(Compiler *compiler) {
 }
 
 // Prefix expression: We assume "(" has already been consumed.
-static void unary(Compiler *compiler) {
+static void unary(Compiler *compiler, bool canAssign) {
+  UNUSED(canAssign);
+
   TokenType t = compiler->parser->prev.type;
 
 #ifdef DEBUG_COMPILE_EXECUTION
@@ -601,7 +615,9 @@ static void unary(Compiler *compiler) {
   }
 }
 
-static void number(Compiler *compiler) {
+static void number(Compiler *compiler, bool canAssign) {
+  UNUSED(canAssign);
+
   double v = strtod(compiler->parser->prev.start, NULL);
 
 #ifdef DEBUG_COMPILE_EXECUTION
@@ -614,7 +630,9 @@ static void number(Compiler *compiler) {
   emitConstant(compiler, NUMBER_VAL(v));
 }
 
-static void string(Compiler *compiler) {
+static void string(Compiler *compiler, bool canAssign) {
+  UNUSED(canAssign);
+
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
   printf("%sstring(%s)\n",
@@ -632,16 +650,26 @@ static void string(Compiler *compiler) {
                                   compiler->parser->prev.length - 2)));
 }
 
-static void namedVariable(Compiler *compiler, Token *name) {
+static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
   ConstantIndex cidx = identifierConstant(compiler, name);
-  emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+
+  // If we are on a "=", this is a setter, so we consume the expression, if
+  // possible.
+  if (canAssign && match(compiler, TOKEN_EQUAL)) {
+    expression(compiler);
+    emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+  } else {
+    emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+  }
 }
 
-static void variable(Compiler *compiler) {
-  namedVariable(compiler, &compiler->parser->prev);
+static void variable(Compiler *compiler, bool canAssign) {
+  namedVariable(compiler, &compiler->parser->prev, canAssign);
 }
 
-static void literal(Compiler *compiler) {
+static void literal(Compiler *compiler, bool canAssign) {
+  UNUSED(canAssign);
+
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
   printf("%sliteral(%s)\n",

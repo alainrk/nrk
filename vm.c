@@ -283,6 +283,24 @@ static InterpretResult run(VM *vm) {
       push(vm, value);
       break;
     }
+    case OP_SET_GLOBAL:
+    case OP_SET_GLOBAL_LONG: {
+      ObjString *name;
+      if (instruction == OP_SET_GLOBAL) {
+        name = READ_STRING();
+      } else {
+        name = READ_STRING_LONG();
+      }
+
+      // If it's a new entry, it means the variable doesn't exist, clean up and
+      // return error.
+      if (tableSet(&vm->memoryManager->globals, name, peek(vm, 0))) {
+        tableDelete(&vm->memoryManager->globals, name);
+        runtimeError(vm, "Undefined variable '%s'.", name->str);
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      break;
+    }
     }
   }
 

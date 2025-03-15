@@ -47,7 +47,7 @@ typedef struct {
   Chunk *currentChunk;
 } Compiler;
 
-typedef void (*ParseFn)(Compiler *compiler);
+typedef void (*ParseFn)(Compiler *compiler, bool canAssign);
 
 // Given an expression starting with a token, knowing its type we need to know:
 typedef struct {
