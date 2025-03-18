@@ -22,6 +22,7 @@ static void number(Compiler *compiler, bool canAssign);
 static void literal(Compiler *compiler, bool canAssign);
 static void string(Compiler *compiler, bool canAssign);
 static void variable(Compiler *compiler, bool canAssign);
+static void postfix(Compiler *compiler, bool canAssign);
 
 static void expression(Compiler *compiler);
 static void declaration(Compiler *compiler);
@@ -30,52 +31,59 @@ static void statement(Compiler *compiler);
 static ParseRule *getRule(TokenType type);
 
 ParseRule rules[] = {
-    [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
-    [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_RIGHT_BRACE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
-    [TOKEN_DOT] = {NULL, NULL, PREC_NONE},
-    [TOKEN_MINUS] = {unary, binary, PREC_TERM},
-    [TOKEN_PLUS] = {NULL, binary, PREC_TERM},
-    [TOKEN_SEMICOLON] = {NULL, NULL, PREC_NONE},
-    [TOKEN_SLASH] = {NULL, binary, PREC_FACTOR},
-    [TOKEN_STAR] = {NULL, binary, PREC_FACTOR},
-    [TOKEN_BANG] = {unary, NULL, PREC_NONE},
-    [TOKEN_BANG_EQUAL] = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_EQUAL] = {NULL, NULL, PREC_NONE},
-    [TOKEN_EQUAL_EQUAL] = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_GREATER] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_GREATER_EQUAL] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LESS] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LESS_EQUAL] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_IDENTIFIER] = {variable, NULL, PREC_NONE},
-    [TOKEN_STRING] = {string, NULL, PREC_NONE},
+    [TOKEN_LEFT_PAREN] = {grouping, NULL, NULL, PREC_NONE},
+    [TOKEN_RIGHT_PAREN] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_LEFT_BRACE] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_RIGHT_BRACE] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_COMMA] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_DOT] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_MINUS] = {unary, binary, NULL, PREC_TERM},
+    [TOKEN_PLUS] = {NULL, binary, NULL, PREC_TERM},
+    [TOKEN_SEMICOLON] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_SLASH] = {NULL, binary, NULL, PREC_FACTOR},
+    [TOKEN_STAR] = {NULL, binary, NULL, PREC_FACTOR},
+    [TOKEN_BANG] = {unary, NULL, NULL, PREC_NONE},
+    [TOKEN_BANG_EQUAL] = {NULL, binary, NULL, PREC_EQUALITY},
+    [TOKEN_EQUAL] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_EQUAL_EQUAL] = {NULL, binary, NULL, PREC_EQUALITY},
+    [TOKEN_GREATER] = {NULL, binary, NULL, PREC_COMPARISON},
+    [TOKEN_GREATER_EQUAL] = {NULL, binary, NULL, PREC_COMPARISON},
+    [TOKEN_LESS] = {NULL, binary, NULL, PREC_COMPARISON},
+    [TOKEN_LESS_EQUAL] = {NULL, binary, NULL, PREC_COMPARISON},
+    [TOKEN_IDENTIFIER] = {variable, NULL, NULL, PREC_NONE},
+    [TOKEN_STRING] = {string, NULL, NULL, PREC_NONE},
+    // TODO: Set functions and precedence to these six:
+    [TOKEN_PLUS_PLUS] = {NULL, NULL, postfix, PREC_UNARY},
+    [TOKEN_MINUS_MINUS] = {NULL, NULL, postfix, PREC_UNARY},
+    [TOKEN_PLUS_EQUAL] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_MINUS_EQUAL] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_STAR_EQUAL] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_SLASH_EQUAL] = {NULL, NULL, NULL, PREC_NONE},
     // TODO:
     // TOKEN_TEMPL_START,        // Opening "`"
     // TOKEN_TEMPL_END,          // Closing "`"
     // TOKEN_TEMPL_INTERP_START, // Opening "${"
     // TOKEN_TEMPL_INTERP_END,   // Closing "}"
     // TOKEN_TEMPL_CONTENT,      // Non-expression content
-    [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
-    [TOKEN_AND] = {NULL, NULL, PREC_NONE},
-    [TOKEN_CLASS] = {NULL, NULL, PREC_NONE},
-    [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_FALSE] = {literal, NULL, PREC_NONE},
-    [TOKEN_FOR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_FUN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_IF] = {NULL, NULL, PREC_NONE},
-    [TOKEN_NIL] = {literal, NULL, PREC_NONE},
-    [TOKEN_OR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
-    [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_SUPER] = {NULL, NULL, PREC_NONE},
-    [TOKEN_THIS] = {NULL, NULL, PREC_NONE},
-    [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
-    [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
+    [TOKEN_NUMBER] = {number, NULL, NULL, PREC_NONE},
+    [TOKEN_AND] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_CLASS] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_ELSE] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_FALSE] = {literal, NULL, NULL, PREC_NONE},
+    [TOKEN_FOR] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_FUN] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_IF] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_NIL] = {literal, NULL, NULL, PREC_NONE},
+    [TOKEN_OR] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_PRINT] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_RETURN] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_SUPER] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_THIS] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_TRUE] = {literal, NULL, NULL, PREC_NONE},
+    [TOKEN_VAR] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_WHILE] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_ERROR] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_EOF] = {NULL, NULL, NULL, PREC_NONE},
 };
 
 const char *precedenceTypeToString(Precedence type) {
@@ -333,7 +341,16 @@ static void parsePrecedence(Compiler *compiler, Precedence precedence) {
   bool canAssign = precedence <= PREC_ASSIGNMENT;
   rule->prefix(compiler, canAssign);
 
-  // If there is some infix rule, the prefix above might an operand of it.
+  // Process any postfix operations immediately
+  while (true) {
+    rule = getRule(compiler->parser->curr.type);
+    if (rule->postfix == NULL || precedence > rule->precedence)
+      break;
+    advance(compiler);
+    rule->postfix(compiler, canAssign);
+  }
+
+  // If there is some infix rule, the prefix above might be an operand of it.
   // Go ahead until, and only if, the precedence allows it.
   while (precedence <= getRule(compiler->parser->curr.type)->precedence) {
     advance(compiler);
@@ -665,6 +682,71 @@ static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
 
 static void variable(Compiler *compiler, bool canAssign) {
   namedVariable(compiler, &compiler->parser->prev, canAssign);
+}
+
+static void postfix(Compiler *compiler, bool canAssign) {
+  UNUSED(canAssign);
+
+  Chunk *currChunk = compiler->currentChunk;
+
+  // At this point, the variable value is already on the stack
+  // Due to the GET_GLOBAL(_LONG) emitted by the variable prefix function
+
+  // Check that we have at least compiled the variable operator.
+  if (currChunk->count < 2) {
+    error(compiler->parser, "Invalid target for postfix operator");
+    return;
+  }
+
+  // Check if the previous op was a variable load
+  uint8_t lastOp = currChunk->code[currChunk->count - 2];
+
+  if (lastOp != OP_GET_GLOBAL && lastOp != OP_GET_GLOBAL_LONG) {
+    error(compiler->parser, "Can only apply postfix operators to a variable");
+    return;
+  }
+
+  ConstantIndex varIndex;
+
+  if (lastOp == OP_GET_GLOBAL) {
+    // Short constant index case
+    varIndex.bytes[0] = currChunk->code[currChunk->count - 1];
+    varIndex.isLong = false;
+  } else {
+    // Long constant index case
+    varIndex.bytes[0] = currChunk->code[currChunk->count - 3];
+    varIndex.bytes[1] = currChunk->code[currChunk->count - 2];
+    varIndex.bytes[2] = currChunk->code[currChunk->count - 1];
+    varIndex.isLong = true;
+  }
+
+  // Duplicate the value on the stack
+  emitBytes(compiler, 1, __OP_DUP);
+
+  // Determine the operation based on the token type
+  switch (compiler->parser->prev.type) {
+  case TOKEN_PLUS_PLUS:
+    // Add 1 to the duplicate
+    emitConstant(compiler, NUMBER_VAL(1));
+    emitBytes(compiler, 1, OP_ADD);
+    break;
+
+  case TOKEN_MINUS_MINUS:
+    // Subtract 1 from the duplicate
+    emitConstant(compiler, NUMBER_VAL(1));
+    emitBytes(compiler, 1, OP_SUBTRACT);
+    break;
+
+  default:
+    error(compiler->parser, "Unknown postfix operator");
+    return;
+  }
+
+  // Store back to the variable
+  emitConstantIndex(compiler, varIndex, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+
+  // Pop the stored value, leaving the original
+  emitBytes(compiler, 1, OP_POP);
 }
 
 static void literal(Compiler *compiler, bool canAssign) {

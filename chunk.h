@@ -21,9 +21,8 @@
    (uint32_t)((chunk)->code[(offset) + 3] & 0xFF))
 
 typedef enum {
-  // Internal usage only operators
-  __OP_STACK__RESET,
-  // Available operators
+  __OP_STACK_RESET, // Reset the stack
+  __OP_DUP,         // Internally used to duplicate the top of the stack
   OP_EQUAL,
   OP_GREATER,
   OP_LESS,
@@ -48,6 +47,8 @@ typedef enum {
   OP_SET_GLOBAL_LONG,
   OP_DEFINE_GLOBAL,
   OP_DEFINE_GLOBAL_LONG,
+  OP_INCREMENT,
+  OP_DECREMENT,
   OP_NOT,
   OP_RETURN
 } OpCode;

@@ -155,8 +155,12 @@ static InterpretResult run(VM *vm) {
 
     u_int8_t instruction;
     switch (instruction = READ_BYTE()) {
-    case __OP_STACK__RESET: {
+    case __OP_STACK_RESET: {
       resetStack(vm);
+      break;
+    }
+    case __OP_DUP: {
+      push(vm, peek(vm, 0));
       break;
     }
     case OP_NEGATE: {
@@ -249,6 +253,22 @@ static InterpretResult run(VM *vm) {
     }
     case OP_POP: {
       pop(vm);
+      break;
+    }
+    case OP_INCREMENT: {
+      if (!IS_NUMBER(peek(vm, 0))) {
+        runtimeError(vm, "INCREMENT Operation supported only on numbers.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      vm->stackTop[-1].as.number = vm->stackTop[-1].as.number + 1;
+      break;
+    }
+    case OP_DECREMENT: {
+      if (!IS_NUMBER(peek(vm, 0))) {
+        runtimeError(vm, "DECREMENT Operation supported only on numbers.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      vm->stackTop[-1].as.number = vm->stackTop[-1].as.number - 1;
       break;
     }
     case OP_DEFINE_GLOBAL:

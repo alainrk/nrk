@@ -94,6 +94,18 @@ const char *tokenTypeToString(TokenType type) {
     return "TOKEN_WHILE";
   case TOKEN_ERROR:
     return "TOKEN_ERROR";
+  case TOKEN_PLUS_PLUS:
+    return "TOKEN_PLUS_PLUS";
+  case TOKEN_MINUS_MINUS:
+    return "TOKEN_MINUS_MINUS";
+  case TOKEN_PLUS_EQUAL:
+    return "TOKEN_PLUS_EQUAL";
+  case TOKEN_MINUS_EQUAL:
+    return "TOKEN_MINUS_EQUAL";
+  case TOKEN_STAR_EQUAL:
+    return "TOKEN_STAR_EQUAL";
+  case TOKEN_SLASH_EQUAL:
+    return "TOKEN_SLASH_EQUAL";
   case TOKEN_EOF:
     return "TOKEN_EOF";
   default: {
@@ -408,12 +420,24 @@ Token scanToken(Scanner *scanner) {
   case '.':
     return makeToken(scanner, TOKEN_DOT);
   case '-':
+    if (match(scanner, '-'))
+      return makeToken(scanner, TOKEN_MINUS_MINUS);
+    if (match(scanner, '='))
+      return makeToken(scanner, TOKEN_MINUS_EQUAL);
     return makeToken(scanner, TOKEN_MINUS);
   case '+':
+    if (match(scanner, '+'))
+      return makeToken(scanner, TOKEN_PLUS_PLUS);
+    if (match(scanner, '='))
+      return makeToken(scanner, TOKEN_PLUS_EQUAL);
     return makeToken(scanner, TOKEN_PLUS);
   case '/':
+    if (match(scanner, '='))
+      return makeToken(scanner, TOKEN_SLASH_EQUAL);
     return makeToken(scanner, TOKEN_SLASH);
   case '*':
+    if (match(scanner, '='))
+      return makeToken(scanner, TOKEN_STAR_EQUAL);
     return makeToken(scanner, TOKEN_STAR);
   case '!':
     return makeToken(scanner,

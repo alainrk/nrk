@@ -51,10 +51,18 @@ typedef void (*ParseFn)(Compiler *compiler, bool canAssign);
 
 // Given an expression starting with a token, knowing its type we need to know:
 typedef struct {
-  // The func to parse this token when in prefix position (start of expr).
+  // The func to parse this token when in prefix position
+  // (start of expr, e.g. -a).
   ParseFn prefix;
-  // The func to parse this token when in infix position (between expr).
+
+  // The func to parse this token when in infix position
+  // (between expr, e.g. a+b).
   ParseFn infix;
+
+  // The func to parse this token when in suffic position
+  // (end of expr, e.g. a++).
+  ParseFn postfix;
+
   // It's precedence level.
   Precedence precedence;
 } ParseRule;

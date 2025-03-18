@@ -34,6 +34,12 @@ typedef enum {
   TOKEN_GREATER_EQUAL,
   TOKEN_LESS,
   TOKEN_LESS_EQUAL,
+  TOKEN_PLUS_PLUS,   // ++
+  TOKEN_MINUS_MINUS, // --
+  TOKEN_PLUS_EQUAL,  // +=
+  TOKEN_MINUS_EQUAL, // -=
+  TOKEN_STAR_EQUAL,  // *=
+  TOKEN_SLASH_EQUAL, // /=
   // Template strings.
   TOKEN_TEMPL_START,        // Opening "`"
   TOKEN_TEMPL_END,          // Closing "`"

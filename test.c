@@ -20,7 +20,7 @@ void testResetStack() {
     writeConstant(&c, NUMBER_VAL(666), 10);
   }
 
-  writeChunk(&c, __OP_STACK__RESET, 11);
+  writeChunk(&c, __OP_STACK_RESET, 11);
   writeConstant(&c, NUMBER_VAL(42), 12);
 
   // Return

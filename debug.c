@@ -51,8 +51,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 
   u_int8_t instr = chunk->code[offset];
   switch (instr) {
-  case __OP_STACK__RESET:
-    return simpleInstruction("__OP_STACK__RESET", offset);
+  case __OP_STACK_RESET:
+    return simpleInstruction("__OP_STACK_RESET", offset);
+  case __OP_DUP:
+    return simpleInstruction("__OP_DUP", offset);
   case OP_NEGATE:
     return simpleInstruction("OP_NEGATE", offset);
   case OP_PRINT:
@@ -105,6 +107,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return simpleInstruction("OP_LESS_EQUAL", offset);
   case OP_POP:
     return simpleInstruction("OP_POP", offset);
+  case OP_INCREMENT:
+    return simpleInstruction("OP_INCREMENT", offset);
+  case OP_DECREMENT:
+    return simpleInstruction("OP_DECREMENT", offset);
   default:
     printf("Unknown opcode %d\n", instr);
     return offset + 1;
