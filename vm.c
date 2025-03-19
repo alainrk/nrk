@@ -274,10 +274,11 @@ static InterpretResult run(VM *vm) {
     case OP_DEFINE_GLOBAL:
     case OP_DEFINE_GLOBAL_LONG: {
       ObjString *name;
-      if (instruction == OP_DEFINE_GLOBAL) {
-        name = READ_STRING();
-      } else {
+      if (instruction == OP_DEFINE_GLOBAL_LONG) {
         name = READ_STRING_LONG();
+        MOVE_BYTES(3);
+      } else {
+        name = READ_STRING();
       }
 
       // nrk doesn't check for redefinition of global variables, it just
@@ -289,10 +290,11 @@ static InterpretResult run(VM *vm) {
     case OP_GET_GLOBAL:
     case OP_GET_GLOBAL_LONG: {
       ObjString *name;
-      if (instruction == OP_GET_GLOBAL) {
-        name = READ_STRING();
-      } else {
+      if (instruction == OP_GET_GLOBAL_LONG) {
         name = READ_STRING_LONG();
+        MOVE_BYTES(3);
+      } else {
+        name = READ_STRING();
       }
 
       Value value;
@@ -306,10 +308,11 @@ static InterpretResult run(VM *vm) {
     case OP_SET_GLOBAL:
     case OP_SET_GLOBAL_LONG: {
       ObjString *name;
-      if (instruction == OP_SET_GLOBAL) {
-        name = READ_STRING();
-      } else {
+      if (instruction == OP_SET_GLOBAL_LONG) {
         name = READ_STRING_LONG();
+        MOVE_BYTES(3);
+      } else {
+        name = READ_STRING();
       }
 
       // If it's a new entry, it means the variable doesn't exist, clean up and

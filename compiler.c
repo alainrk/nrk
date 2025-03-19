@@ -377,6 +377,8 @@ static void parsePrecedence(Compiler *compiler, Precedence precedence) {
 #endif
 }
 
+// Adds the variable (identifier) to the chunk's constants table as a string,
+// returning its index (normal or long).
 ConstantIndex identifierConstant(Compiler *compiler, Token *name) {
   return makeConstant(compiler, OBJ_VAL(copyString(compiler->memoryManager,
                                                    name->start, name->length)));
@@ -499,11 +501,16 @@ static void expression(Compiler *compiler) {
 #endif
 }
 
+// Defining a variable, means putting its name into a ObjString, but storing the
+// index in the VM operation with its index in the Chunk's constants table, as
+// otherwise would be too expensive.
 static void defineVariable(Compiler *compiler, ConstantIndex variable) {
   emitConstantIndex(compiler, variable, OP_DEFINE_GLOBAL,
                     OP_DEFINE_GLOBAL_LONG);
 }
 
+// Variable declaration, parsing it and storing in constant's table (see
+// defineVariable() for the details).
 static void varDeclaration(Compiler *compiler) {
   ConstantIndex global = parseVariable(compiler, "Expect variable name.");
 
@@ -680,6 +687,7 @@ static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
   }
 }
 
+// Variable read access (e.g. to read its value in an expression).
 static void variable(Compiler *compiler, bool canAssign) {
   namedVariable(compiler, &compiler->parser->prev, canAssign);
 }
