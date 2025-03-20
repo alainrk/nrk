@@ -694,7 +694,6 @@ static void variable(Compiler *compiler, bool canAssign) {
 
 static void postfix(Compiler *compiler, bool canAssign) {
   UNUSED(canAssign);
-
   Chunk *currChunk = compiler->currentChunk;
 
   // At this point, the variable value is already on the stack
@@ -707,7 +706,17 @@ static void postfix(Compiler *compiler, bool canAssign) {
   }
 
   // Check if the previous op was a variable load
+  // 1. First try looking back 2 bytes (GET_GLOBAL case, 1 operand byte + 1
+  // index byte)
   uint8_t lastOp = currChunk->code[currChunk->count - 2];
+  int offset = 2;
+
+  // 2. If not a normal GET_GLOBAL, try looking back 4 bytes (GET_GLOBAL_LONG, 1
+  // operand byte + 3 index bytes)
+  if (lastOp != OP_GET_GLOBAL) {
+    lastOp = currChunk->code[currChunk->count - 4];
+    offset = 4;
+  }
 
   if (lastOp != OP_GET_GLOBAL && lastOp != OP_GET_GLOBAL_LONG) {
     error(compiler->parser, "Can only apply postfix operators to a variable");
