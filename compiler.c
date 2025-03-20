@@ -385,6 +385,13 @@ ConstantIndex identifierConstant(Compiler *compiler, Token *name) {
 }
 
 ConstantIndex parseVariable(Compiler *compiler, const char *message) {
+#ifdef DEBUG_COMPILE_EXECUTION
+  debugIndent++;
+  printf("%sparseVariable\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent));
+  debugIndent--;
+#endif
+
   consume(compiler, TOKEN_IDENTIFIER, message);
   return identifierConstant(compiler, &compiler->parser->prev);
 }
@@ -403,6 +410,13 @@ ParseRule *getRule(TokenType t) { return &rules[t]; }
 
 static void binary(Compiler *compiler, bool canAssign) {
   UNUSED(canAssign);
+
+#ifdef DEBUG_COMPILE_EXECUTION
+  debugIndent++;
+  printf("%sbinary(%d)\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent), canAssign);
+  debugIndent--;
+#endif
 
   TokenType t = compiler->parser->prev.type;
 
@@ -505,6 +519,12 @@ static void expression(Compiler *compiler) {
 // index in the VM operation with its index in the Chunk's constants table, as
 // otherwise would be too expensive.
 static void defineVariable(Compiler *compiler, ConstantIndex variable) {
+#ifdef DEBUG_COMPILE_EXECUTION
+  debugIndent++;
+  printf("%sdefineVariable()\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent));
+#endif
+
   emitConstantIndex(compiler, variable, OP_DEFINE_GLOBAL,
                     OP_DEFINE_GLOBAL_LONG);
 }
@@ -512,6 +532,12 @@ static void defineVariable(Compiler *compiler, ConstantIndex variable) {
 // Variable declaration, parsing it and storing in constant's table (see
 // defineVariable() for the details).
 static void varDeclaration(Compiler *compiler) {
+#ifdef DEBUG_COMPILE_EXECUTION
+  debugIndent++;
+  printf("%svarDeclaration()\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent));
+#endif
+
   ConstantIndex global = parseVariable(compiler, "Expect variable name.");
 
   if (match(compiler, TOKEN_EQUAL)) {
@@ -675,12 +701,42 @@ static void string(Compiler *compiler, bool canAssign) {
 }
 
 static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
+#ifdef DEBUG_COMPILE_EXECUTION
+  debugIndent++;
+  char n[name->length + 1];
+  snprintf(n, sizeof(n), "%s", name->start);
+  n[sizeof(n) + 1] = '\0';
+  printf("%snamedVariable(%s)\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent), n);
+  debugIndent--;
+#endif
+
   ConstantIndex cidx = identifierConstant(compiler, name);
 
   // If we are on a "=", this is a setter, so we consume the expression, if
   // possible.
   if (canAssign && match(compiler, TOKEN_EQUAL)) {
     expression(compiler);
+    emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+  } else if (canAssign && match(compiler, TOKEN_PLUS_EQUAL)) {
+    emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    expression(compiler);
+    emitBytes(compiler, 1, OP_ADD);
+    emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+  } else if (canAssign && match(compiler, TOKEN_MINUS_EQUAL)) {
+    emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    expression(compiler);
+    emitBytes(compiler, 1, OP_SUBTRACT);
+    emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+  } else if (canAssign && match(compiler, TOKEN_STAR_EQUAL)) {
+    emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    expression(compiler);
+    emitBytes(compiler, 1, OP_MULTIPLY);
+    emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+  } else if (canAssign && match(compiler, TOKEN_SLASH_EQUAL)) {
+    emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    expression(compiler);
+    emitBytes(compiler, 1, OP_DIVIDE);
     emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
   } else {
     emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
@@ -709,13 +765,11 @@ static void postfix(Compiler *compiler, bool canAssign) {
   // 1. First try looking back 2 bytes (GET_GLOBAL case, 1 operand byte + 1
   // index byte)
   uint8_t lastOp = currChunk->code[currChunk->count - 2];
-  int offset = 2;
 
   // 2. If not a normal GET_GLOBAL, try looking back 4 bytes (GET_GLOBAL_LONG, 1
   // operand byte + 3 index bytes)
   if (lastOp != OP_GET_GLOBAL) {
     lastOp = currChunk->code[currChunk->count - 4];
-    offset = 4;
   }
 
   if (lastOp != OP_GET_GLOBAL && lastOp != OP_GET_GLOBAL_LONG) {

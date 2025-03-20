@@ -6,12 +6,12 @@
 #include <stdint.h>
 
 #define NRK_VERSION "0.0.1"
+#define DEBUG_COMPILE_INDENT_CHAR ' '
 
-// #define DEBUG_PRINT_CODE
-// #define DEBUG_TRACE_EXECUTION
+#define DEBUG_PRINT_CODE
+#define DEBUG_TRACE_EXECUTION
 // #define DEBUG_SCAN_EXECUTION
-// #define DEBUG_COMPILE_EXECUTION
-// #define DEBUG_COMPILE_INDENT_CHAR ' '
+#define DEBUG_COMPILE_EXECUTION
 
 // For intentionally unused parameters (e.g. ParseFn funcs have to have all the
 // same signatures)
