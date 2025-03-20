@@ -26,6 +26,7 @@ The language currently supports:
 - Type checking for operations
 - Print statements (`print "Hello, World!";`)
 - Variables and variable assignment
+- Postfix operators (`++`, `--`)
 
 Additional custom features implemented in `nrk`:
 
@@ -130,6 +131,15 @@ var name = "world";
 print greeting + name + "!";  // Hello, world!
 ```
 
+Postfix operators:
+
+```go
+var a = 5;
+var b = a++;
+print b; // 5
+print a; // 6
+```
+
 ## Development Status
 
 `nrk` is currently in early development with version v0.0.2. Recent implementations include:
@@ -142,12 +152,15 @@ print greeting + name + "!";  // Hello, world!
 - REPL with persistent history across sessions
 - Foundation for garbage collection
 - Print statements
+- Postfix operators (`++`, `--`)
+- Preparation for compound assignment operators (`+=`, `-=`, `*=`, `/=`)
 
 Future plans include:
 
 - Control flow (if/else, loops)
 - Functions and closures
 - Classes and inheritance
+- Full implementation of compound assignment operators
 
 ## Debugging Features
 
@@ -162,3 +175,4 @@ The interpreter includes several debugging features that can be enabled by uncom
 
 - Extend table's support to other immutable objects other than strings as keys.
 - In compiler avoid multiple pointer indirections with compiler->parser/scanner if used in critical paths and just bring it to a var inside the function.
+- Complete implementation of compound assignment operators.
