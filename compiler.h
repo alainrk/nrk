@@ -33,7 +33,7 @@ typedef enum {
   PREC_AND,        // 3. and
   PREC_EQUALITY,   // 4. == !=
   PREC_COMPARISON, // 5. < > <= >=
-  PREC_TERM,       // 6. + -
+  PREC_TERM,       // 6. + - >> << ^ & |
   PREC_FACTOR,     // 7. * /
   PREC_UNARY,      // 8. ! -
   PREC_CALL,       // 9. . ()

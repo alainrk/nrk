@@ -25,7 +25,6 @@ typedef enum {
   TOKEN_SLASH,
   TOKEN_STAR,
   TOKEN_DOLLAR,
-  // One or two character tokens.
   TOKEN_BANG,
   TOKEN_BANG_EQUAL,
   TOKEN_EQUAL,
@@ -34,12 +33,18 @@ typedef enum {
   TOKEN_GREATER_EQUAL,
   TOKEN_LESS,
   TOKEN_LESS_EQUAL,
-  TOKEN_PLUS_PLUS,   // ++
-  TOKEN_MINUS_MINUS, // --
-  TOKEN_PLUS_EQUAL,  // +=
-  TOKEN_MINUS_EQUAL, // -=
-  TOKEN_STAR_EQUAL,  // *=
-  TOKEN_SLASH_EQUAL, // /=
+  TOKEN_GREATER_GREATER, // >> (bit shift right)
+  TOKEN_LESS_LESS,       // << (bit shift left)
+  TOKEN_AMPERSEND,       // & (bit and)
+  TOKEN_CARET,           // ^ (bit xor)
+  TOKEN_PIPE,            // | (bit or)
+  TOKEN_TILDE,           // ~ (bit not)
+  TOKEN_PLUS_PLUS,       // ++
+  TOKEN_MINUS_MINUS,     // --
+  TOKEN_PLUS_EQUAL,      // +=
+  TOKEN_MINUS_EQUAL,     // -=
+  TOKEN_STAR_EQUAL,      // *=
+  TOKEN_SLASH_EQUAL,     // /=
   // Template strings.
   TOKEN_TEMPL_START,        // Opening "`"
   TOKEN_TEMPL_END,          // Closing "`"

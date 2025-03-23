@@ -195,6 +195,17 @@ static InterpretResult run(VM *vm) {
       BINARY_OP(NUMBER_VAL, /);
       break;
     }
+    case OP_BITWISE_NOT: {
+      if (!IS_NUMBER(peek(vm, 0))) {
+        runtimeError(vm, "Cannot apply bitwise not on non numbers.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      int64_t result = ~(int64_t)AS_NUMBER(peek(vm, 0));
+      vm->stackTop[-1].as.number = (double)result;
+
+      break;
+    }
     case OP_RETURN: {
       return INTERPRET_OK;
     }

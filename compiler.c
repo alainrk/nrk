@@ -52,13 +52,19 @@ ParseRule rules[] = {
     [TOKEN_LESS_EQUAL] = {NULL, binary, NULL, PREC_COMPARISON},
     [TOKEN_IDENTIFIER] = {variable, NULL, NULL, PREC_NONE},
     [TOKEN_STRING] = {string, NULL, NULL, PREC_NONE},
-    // TODO: Set functions and precedence to these six:
     [TOKEN_PLUS_PLUS] = {NULL, NULL, postfix, PREC_UNARY},
     [TOKEN_MINUS_MINUS] = {NULL, NULL, postfix, PREC_UNARY},
     [TOKEN_PLUS_EQUAL] = {NULL, NULL, NULL, PREC_NONE},
     [TOKEN_MINUS_EQUAL] = {NULL, NULL, NULL, PREC_NONE},
     [TOKEN_STAR_EQUAL] = {NULL, NULL, NULL, PREC_NONE},
     [TOKEN_SLASH_EQUAL] = {NULL, NULL, NULL, PREC_NONE},
+    // TODO: Set functions and precedence to these:
+    [TOKEN_GREATER_GREATER] = {NULL, binary, NULL, PREC_TERM},
+    [TOKEN_LESS_LESS] = {NULL, NULL, binary, PREC_TERM},
+    [TOKEN_AMPERSEND] = {NULL, binary, NULL, PREC_TERM},
+    [TOKEN_CARET] = {NULL, binary, NULL, PREC_TERM},
+    [TOKEN_PIPE] = {NULL, binary, NULL, PREC_TERM},
+    [TOKEN_TILDE] = {unary, NULL, NULL, PREC_UNARY},
     // TODO:
     // TOKEN_TEMPL_START,        // Opening "`"
     // TOKEN_TEMPL_END,          // Closing "`"
@@ -657,6 +663,9 @@ static void unary(Compiler *compiler, bool canAssign) {
     break;
   case TOKEN_BANG:
     emitBytes(compiler, 1, OP_NOT);
+    break;
+  case TOKEN_TILDE:
+    emitBytes(compiler, 1, OP_BITWISE_NOT);
     break;
   // Unreachable case
   default:

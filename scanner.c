@@ -106,6 +106,18 @@ const char *tokenTypeToString(TokenType type) {
     return "TOKEN_STAR_EQUAL";
   case TOKEN_SLASH_EQUAL:
     return "TOKEN_SLASH_EQUAL";
+  case TOKEN_GREATER_GREATER:
+    return "TOKEN_GREATER_GREATER";
+  case TOKEN_LESS_LESS:
+    return "TOKEN_LESS_LESS";
+  case TOKEN_AMPERSEND:
+    return "TOKEN_AMPERSEND";
+  case TOKEN_CARET:
+    return "TOKEN_CARET";
+  case TOKEN_PIPE:
+    return "TOKEN_PIPE";
+  case TOKEN_TILDE:
+    return "TOKEN_TILDE";
   case TOKEN_EOF:
     return "TOKEN_EOF";
   default: {
@@ -445,12 +457,26 @@ Token scanToken(Scanner *scanner) {
   case '=':
     return makeToken(scanner,
                      match(scanner, '=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
+  case '~':
+    return makeToken(scanner, TOKEN_TILDE);
+  case '|':
+    return makeToken(scanner, TOKEN_PIPE);
+  case '&':
+    return makeToken(scanner, TOKEN_AMPERSEND);
+  case '^':
+    return makeToken(scanner, TOKEN_CARET);
   case '<':
-    return makeToken(scanner,
-                     match(scanner, '=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
+    if (match(scanner, '='))
+      return makeToken(scanner, TOKEN_LESS_EQUAL);
+    if (match(scanner, '<'))
+      return makeToken(scanner, TOKEN_LESS_LESS);
+    return makeToken(scanner, TOKEN_LESS);
   case '>':
-    return makeToken(scanner,
-                     match(scanner, '=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
+    if (match(scanner, '='))
+      return makeToken(scanner, TOKEN_GREATER_EQUAL);
+    if (match(scanner, '>'))
+      return makeToken(scanner, TOKEN_GREATER_GREATER);
+    return makeToken(scanner, TOKEN_GREATER);
   case '"':
     return string(scanner);
 
