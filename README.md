@@ -55,13 +55,13 @@ make all
 **REPL Mode**:
 
 ```sh
-./main
+./bin/nrk
 ```
 
 **File Execution**:
 
 ```sh
-./main path/to/script.nrk
+./bin/nrk path/to/script.nrk
 ```
 
 ## Language Guide
