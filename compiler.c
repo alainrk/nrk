@@ -483,19 +483,28 @@ static void binary(Compiler *compiler, bool canAssign) {
     emitBytes(compiler, 1, OP_LESS);
     break;
   case TOKEN_BANG_EQUAL:
-    // This could be done  by pushing EQUAL, NOT to reduce the amount of ops,
-    // but this way is slightly faster
     emitBytes(compiler, 1, OP_NOT_EQUAL);
     break;
   case TOKEN_GREATER_EQUAL:
-    // This could be done by pushing LESS, NOT to reduce the amount of ops, but
-    // this way is slightly faster
     emitBytes(compiler, 1, OP_GREATER_EQUAL);
     break;
   case TOKEN_LESS_EQUAL:
-    // This could be done by pushing GREATER, NOT to reduce the amount of ops,
-    // but this way is slightly faster
     emitBytes(compiler, 1, OP_LESS_EQUAL);
+    break;
+  case TOKEN_GREATER_GREATER:
+    emitBytes(compiler, 1, OP_BITWISE_SHIFT_RIGHT);
+    break;
+  case TOKEN_LESS_LESS:
+    emitBytes(compiler, 1, OP_BITWISE_SHIFT_LEFT);
+    break;
+  case TOKEN_AMPERSEND:
+    emitBytes(compiler, 1, OP_BITWISE_AND);
+    break;
+  case TOKEN_PIPE:
+    emitBytes(compiler, 1, OP_BITWISE_OR);
+    break;
+  case TOKEN_CARET:
+    emitBytes(compiler, 1, OP_BITWISE_XOR);
     break;
 
   // Unreachable case

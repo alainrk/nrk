@@ -127,7 +127,6 @@ static InterpretResult run(VM *vm) {
 
 #define READ_STRING_LONG() AS_STRING(READ_CONSTANT_LONG())
 
-// TODO: Handle strings binary operations
 #define BINARY_OP(valueType, op)                                               \
   do {                                                                         \
     if (!IS_NUMBER(peek(vm, 0)) || !IS_NUMBER(peek(vm, 1))) {                  \
@@ -137,6 +136,17 @@ static InterpretResult run(VM *vm) {
     double b = AS_NUMBER(pop(vm));                                             \
     double a = AS_NUMBER(pop(vm));                                             \
     push(vm, valueType(a op b));                                               \
+  } while (false)
+
+#define BINARY_OP_BITWISE(op)                                                  \
+  do {                                                                         \
+    if (!IS_NUMBER(peek(vm, 0)) || !IS_NUMBER(peek(vm, 1))) {                  \
+      runtimeError(vm, "Bitwise operands must be numbers.");                   \
+      return INTERPRET_RUNTIME_ERROR;                                          \
+    }                                                                          \
+    int64_t b = (int64_t)AS_NUMBER(pop(vm));                                   \
+    int64_t a = (int64_t)AS_NUMBER(pop(vm));                                   \
+    push(vm, NUMBER_VAL(a op b));                                              \
   } while (false)
 
   // Decode and dispatch loop
@@ -204,6 +214,26 @@ static InterpretResult run(VM *vm) {
       int64_t result = ~(int64_t)AS_NUMBER(peek(vm, 0));
       vm->stackTop[-1].as.number = (double)result;
 
+      break;
+    }
+    case OP_BITWISE_SHIFT_RIGHT: {
+      BINARY_OP_BITWISE(>>);
+      break;
+    }
+    case OP_BITWISE_SHIFT_LEFT: {
+      BINARY_OP_BITWISE(<<);
+      break;
+    }
+    case OP_BITWISE_AND: {
+      BINARY_OP_BITWISE(&);
+      break;
+    }
+    case OP_BITWISE_OR: {
+      BINARY_OP_BITWISE(|);
+      break;
+    }
+    case OP_BITWISE_XOR: {
+      BINARY_OP_BITWISE(^);
       break;
     }
     case OP_RETURN: {
@@ -345,6 +375,7 @@ static InterpretResult run(VM *vm) {
 #undef READ_STRING
 #undef READ_STRING_LONG
 #undef BINARY_OP
+#undef BINARY_OP_BITWISE
 }
 
 InterpretResult interpretChunk(VM *vm, Chunk *chunk) {
