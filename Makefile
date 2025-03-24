@@ -1,34 +1,53 @@
-.PHONY: all clean run build
-
-# Compiler settings
 CC = clang
-CFLAGS = -std=c99 -Wall -Wpointer-sign -Wextra -g
-# CFLAGS = -std=c99 -Wall -Wpointer-sign -Wextra -Wno-unused-parameter -g
+CFLAGS = -std=c99 -Wall -Wextra -Werror -g
+LDFLAGS = -lreadline
+SRC_DIR = src
+OBJ_DIR = obj
+BIN_DIR = bin
 
-# Project files
-SRCS = $(wildcard *.c)
-OBJS = $(SRCS:.c=.o)
-TARGET = main
+# Create directories if they don't exist
+$(shell mkdir -p $(OBJ_DIR) $(BIN_DIR))
 
-# Default target
-all: $(TARGET)
+# Source files
+SRCS = $(wildcard $(SRC_DIR)/*.c)
+# Object files (replace src/ with obj/ in the path)
+OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+# Main executable
+MAIN = $(BIN_DIR)/nrk
 
-# Link object files into binary
-$(TARGET): $(OBJS)
-	$(CC) $(OBJS) -o $(TARGET)
+.PHONY: all clean
 
-# Compile source files into object files
-%.o: %.c
+all: $(MAIN)
+
+# Linking rule
+$(MAIN): $(OBJS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+
+# Compilation rule: each .c file to corresponding .o file
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Generate compilation database using build
-build:
-	bear -- make all
+# Include automatically generated dependencies
+-include $(OBJS:.o=.d)
 
-# Clean build files
+# Rule to generate a dependency file
+$(OBJ_DIR)/%.d: $(SRC_DIR)/%.c
+	@set -e; rm -f $@; \
+	$(CC) -MM $(CFLAGS) $< > $@.$$$$; \
+	sed 's,\($*\)\.o[ :]*,$(OBJ_DIR)/\1.o $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
+
 clean:
-	rm -f $(OBJS) $(TARGET) *.i *.s *.bc compile_commands.json
+	rm -rf $(OBJ_DIR)/* $(BIN_DIR)/* *.o *.d
 
-# Run the program
-run: $(TARGET)
-	./$(TARGET)
+# Run the program in REPL mode
+run: $(MAIN)
+	$(MAIN)
+
+# Run a specific test or script
+test: $(MAIN)
+	$(MAIN) test/test_script.nrk
+
+# Debug with GDB
+debug: $(MAIN)
+	gdb $(MAIN)
