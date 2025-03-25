@@ -36,7 +36,9 @@ void freeVM(VM *vm) {
 };
 
 void resetStack(VM *vm) {
-  vm->stack = FREE_ARR(Value, vm->stack, vm->stackCap);
+  if (vm->stack != NULL) {
+    vm->stack = FREE_ARR(Value, vm->stack, vm->stackCap);
+  }
 
   // Let's grow the stack right away to avoid doing it everytime at runtime the
   // first time

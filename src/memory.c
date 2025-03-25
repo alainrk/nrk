@@ -59,5 +59,6 @@ void *reallocate(void *p, size_t oldSize, size_t newSize) {
     perror("realloc failed");
     exit(1);
   }
+
   return res;
 }
