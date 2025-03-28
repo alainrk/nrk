@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -141,6 +142,8 @@ Compiler *initCompiler(MemoryManager *mm) {
   Compiler *compiler = (Compiler *)malloc(sizeof(Compiler));
   compiler->parser = (Parser *)malloc(sizeof(Parser));
   compiler->memoryManager = mm;
+  compiler->localCount = 0;
+  compiler->scopeDepth = 0;
   return compiler;
 }
 
@@ -390,6 +393,56 @@ ConstantIndex identifierConstant(Compiler *compiler, Token *name) {
                                                    name->start, name->length)));
 }
 
+bool identifiersEqual(Token *a, Token *b) {
+  return ((a->length == b->length) &&
+          (memcmp(a->start, b->start, a->length) == 0));
+}
+
+// Records the existence of temporary local variable in the compiler.
+static void addLocal(Compiler *compiler, Token name) {
+  if (compiler->localCount >= UINT8_COUNT) {
+    error(compiler->parser, "Too many local variables in function.");
+    return;
+  }
+
+  Local *local = &compiler->locals[compiler->localCount++];
+  local->name = name;
+  local->depth = compiler->scopeDepth;
+}
+
+static void declareVariable(Compiler *compiler) {
+  // Global variable, just return as it's late bound and present in global
+  // table.
+  if (compiler->scopeDepth == 0)
+    return;
+
+  // Local variable.
+  Token *name = &compiler->parser->prev;
+
+  // Not allowing redeclaring the same variable name in the same scope.
+  // e.g.
+  // {
+  //  var a = 1;
+  //  var a = 2;
+  // }
+  //
+  // We start from the end as in the compiler the last scope is on top, so we
+  // can iterate backward and stop when reached the end on our scope.
+  for (int i = compiler->localCount - 1; i >= 0; i--) {
+    Local *local = &compiler->locals[i];
+    if (local->depth != -1 && local->depth < compiler->scopeDepth) {
+      break;
+    }
+
+    if (identifiersEqual(name, &local->name)) {
+      error(compiler->parser,
+            "Already a variable with this name in this scope.");
+    }
+  }
+
+  addLocal(compiler, *name);
+}
+
 ConstantIndex parseVariable(Compiler *compiler, const char *message) {
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
@@ -399,6 +452,15 @@ ConstantIndex parseVariable(Compiler *compiler, const char *message) {
 #endif
 
   consume(compiler, TOKEN_IDENTIFIER, message);
+  declareVariable(compiler);
+
+  // If it's a local variable we don't really care as it will remain on the
+  // stack, so the index won't be used to lookup in global table.
+  if (compiler->scopeDepth > 0) {
+    ConstantIndex res = {.isLong = false, {0, 0, 0}};
+    return res;
+  }
+
   return identifierConstant(compiler, &compiler->parser->prev);
 }
 
@@ -410,6 +472,23 @@ static void endCompiler(Compiler *compiler) {
     disassembleChunk(compiler->currentChunk, "code");
   }
 #endif
+}
+
+// Increment the current scope depth of the compiler.
+static void beginScope(Compiler *compiler) { compiler->scopeDepth++; }
+
+// Decrement the current scope depth of the compiler and empty the stack from
+// the remaining local variables.
+static void endScope(Compiler *compiler) {
+  compiler->scopeDepth--;
+
+  // TODO: Implement a OP_POP_N operator that pops N elements for performance.
+  while (compiler->localCount > 0 &&
+         compiler->locals[compiler->localCount - 1].depth >
+             compiler->scopeDepth) {
+    emitBytes(compiler, 1, OP_POP);
+    compiler->localCount--;
+  }
 }
 
 ParseRule *getRule(TokenType t) { return &rules[t]; }
@@ -530,6 +609,14 @@ static void expression(Compiler *compiler) {
 #endif
 }
 
+static void block(Compiler *compiler) {
+  while (check(compiler, TOKEN_RIGHT_BRACE) && !check(compiler, TOKEN_EOF)) {
+    declaration(compiler);
+  }
+
+  consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+}
+
 // Defining a variable, means putting its name into a ObjString, but storing the
 // index in the VM operation with its index in the Chunk's constants table, as
 // otherwise would be too expensive.
@@ -539,6 +626,20 @@ static void defineVariable(Compiler *compiler, ConstantIndex variable) {
   printf("%sdefineVariable()\n",
          strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent));
 #endif
+
+  // If we're in local scope, there's no code to emit at runtime.
+  // VM will have the new value to assign to variable on the top of the stack.
+  //
+  // e.g.
+  //
+  // var a = 1+2;
+  // var b = 4;
+  //
+  // Bytecode: [OP_CONSTANT(1), OP_CONSTANT(2), OP_ADD, OP_CONSTANT(4)]
+  // Stack: [1], [1, 2], [3 (var a)], [3 (var a), 4 (var b)]
+  if (compiler->scopeDepth > 0) {
+    return;
+  }
 
   emitConstantIndex(compiler, variable, OP_DEFINE_GLOBAL,
                     OP_DEFINE_GLOBAL_LONG);
@@ -623,6 +724,10 @@ static void declaration(Compiler *compiler) {
 static void statement(Compiler *compiler) {
   if (match(compiler, TOKEN_PRINT)) {
     printStatement(compiler);
+  } else if (match(compiler, TOKEN_LEFT_BRACE)) {
+    beginScope(compiler);
+    block(compiler);
+    endScope(compiler);
   } else {
     expressionStatement(compiler);
   }

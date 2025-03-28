@@ -2,6 +2,7 @@
 #define nrk_compiler_h
 
 #include "chunk.h"
+#include "common.h"
 #include "memory.h"
 #include "scanner.h"
 
@@ -41,7 +42,17 @@ typedef enum {
 } Precedence;
 
 typedef struct {
+  Token name;
+  int depth;
+} Local;
+
+typedef struct {
   MemoryManager *memoryManager;
+
+  Local locals[UINT8_COUNT];
+  int localCount;
+  int scopeDepth;
+
   Scanner *scanner;
   Parser *parser;
   Chunk *currentChunk;

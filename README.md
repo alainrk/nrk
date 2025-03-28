@@ -202,6 +202,24 @@ NRK is implemented as a bytecode virtual machine with a stack-based architecture
 2. **Compiler**: Parses tokens and generates bytecode instructions
 3. **Virtual Machine**: Executes bytecode instructions
 
+### Grammar Notes
+
+**Grammar**:
+
+```
+statement      → exprStmt
+               | printStmt
+               | block ;
+
+block          → "{" declaration* "}" ;
+```
+
+**Variable declaration**:
+
+```
+varDeclaration() -> parseVariable() --Constant--> Compile Initializer -> defineVariable()
+```
+
 ### Project Structure
 
 - **VM**: Stack-based virtual machine that executes bytecode
