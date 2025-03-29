@@ -637,7 +637,7 @@ static void expression(Compiler *compiler) {
 }
 
 static void block(Compiler *compiler) {
-  while (check(compiler, TOKEN_RIGHT_BRACE) && !check(compiler, TOKEN_EOF)) {
+  while (!check(compiler, TOKEN_RIGHT_BRACE) && !check(compiler, TOKEN_EOF)) {
     declaration(compiler);
   }
 
@@ -873,7 +873,6 @@ static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
 #endif
 
   int localIdx = resolveLocal(compiler, name);
-
   ConstantIndex cidx = identifierConstant(compiler, name);
 
   // If we are on a "=", this is a setter, so we consume the expression, if
