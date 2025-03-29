@@ -398,6 +398,24 @@ bool identifiersEqual(Token *a, Token *b) {
           (memcmp(a->start, b->start, a->length) == 0));
 }
 
+static int resolveLocal(Compiler *compiler, Token *name) {
+  // Loop backward passing all the scope bottom up to resolve the first matching
+  // one.
+  for (int i = compiler->localCount; i >= 0; i--) {
+    Local *local = &compiler->locals[i];
+    if (identifiersEqual(name, &local->name)) {
+      // When we resolve to a local variable we check the scope depth to see if
+      // it's fully defined (usage in `var a = a+3;`).
+      if (local->depth == -1) {
+        error(compiler->parser, "Can't read variable in it's own initializer.");
+      }
+      return i;
+    }
+  }
+
+  return -1;
+}
+
 // Records the existence of temporary local variable in the compiler.
 static void addLocal(Compiler *compiler, Token name) {
   if (compiler->localCount >= UINT8_COUNT) {
@@ -407,9 +425,13 @@ static void addLocal(Compiler *compiler, Token name) {
 
   Local *local = &compiler->locals[compiler->localCount++];
   local->name = name;
-  local->depth = compiler->scopeDepth;
+  // We are initializing the variable, and we need to prevent its usage in the
+  // expression, see defineVariable() comment in the if statement for details.
+  local->depth = -1;
 }
 
+// Declare: when a variable is added to the scope (define is when it's ready to
+// use).
 static void declareVariable(Compiler *compiler) {
   // Global variable, just return as it's late bound and present in global
   // table.
@@ -462,6 +484,11 @@ ConstantIndex parseVariable(Compiler *compiler, const char *message) {
   }
 
   return identifierConstant(compiler, &compiler->parser->prev);
+}
+
+// See description comment in defineVariable() on why we need this.
+static void markInitialized(Compiler *compiler) {
+  compiler->locals[compiler->localCount - 1].depth = compiler->scopeDepth;
 }
 
 static void endCompiler(Compiler *compiler) {
@@ -617,6 +644,9 @@ static void block(Compiler *compiler) {
   consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
 
+// Define: when a variable is available and ready to use, after it's been
+// declared.
+//
 // Defining a variable, means putting its name into a ObjString, but storing the
 // index in the VM operation with its index in the Chunk's constants table, as
 // otherwise would be too expensive.
@@ -638,6 +668,14 @@ static void defineVariable(Compiler *compiler, ConstantIndex variable) {
   // Bytecode: [OP_CONSTANT(1), OP_CONSTANT(2), OP_ADD, OP_CONSTANT(4)]
   // Stack: [1], [1, 2], [3 (var a)], [3 (var a), 4 (var b)]
   if (compiler->scopeDepth > 0) {
+    // If we're declaring a local variable, we could meet a situation where it's
+    // used in the expression, but referring to the one of the previous scope.
+    // This is not correct, so we need to prevent it, marking it temporarily
+    // "disabled", and "activating" it later.
+    //
+    // e.g.
+    // var a = 5 * a + 2;
+    markInitialized(compiler);
     return;
   }
 
@@ -646,7 +684,7 @@ static void defineVariable(Compiler *compiler, ConstantIndex variable) {
 }
 
 // Variable declaration, parsing it and storing in constant's table (see
-// defineVariable() for the details).
+// defineVariable() for the details.
 static void varDeclaration(Compiler *compiler) {
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
@@ -834,35 +872,94 @@ static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
   debugIndent--;
 #endif
 
+  int localIdx = resolveLocal(compiler, name);
+
   ConstantIndex cidx = identifierConstant(compiler, name);
 
   // If we are on a "=", this is a setter, so we consume the expression, if
   // possible.
+  //
+  // TODO: There is a lot of repetition here, it could be cleaned up creating a
+  // fake ConstantIndex and using OP_SET/GET_LOCAL_LONG as a fake instruction
+  // for the emitConstantIndex() arg.
   if (canAssign && match(compiler, TOKEN_EQUAL)) {
     expression(compiler);
-    emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+
+    if (localIdx != -1) {
+      emitBytes(compiler, 2, OP_SET_LOCAL, (uint8_t)localIdx);
+    } else {
+      emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+    }
+
   } else if (canAssign && match(compiler, TOKEN_PLUS_EQUAL)) {
-    emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+
+    if (localIdx != -1) {
+      emitBytes(compiler, 2, OP_GET_LOCAL, (uint8_t)localIdx);
+    } else {
+      emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    }
+
     expression(compiler);
     emitBytes(compiler, 1, OP_ADD);
-    emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+
+    if (localIdx != -1) {
+      emitBytes(compiler, 2, OP_SET_LOCAL, (uint8_t)localIdx);
+    } else {
+      emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+    }
+
   } else if (canAssign && match(compiler, TOKEN_MINUS_EQUAL)) {
-    emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    if (localIdx != -1) {
+      emitBytes(compiler, 2, OP_GET_LOCAL, (uint8_t)localIdx);
+    } else {
+      emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    }
+
     expression(compiler);
     emitBytes(compiler, 1, OP_SUBTRACT);
-    emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+
+    if (localIdx != -1) {
+      emitBytes(compiler, 2, OP_SET_LOCAL, (uint8_t)localIdx);
+    } else {
+      emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+    }
+
   } else if (canAssign && match(compiler, TOKEN_STAR_EQUAL)) {
-    emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    if (localIdx != -1) {
+      emitBytes(compiler, 2, OP_GET_LOCAL, (uint8_t)localIdx);
+    } else {
+      emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    }
+
     expression(compiler);
     emitBytes(compiler, 1, OP_MULTIPLY);
-    emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+
+    if (localIdx != -1) {
+      emitBytes(compiler, 2, OP_SET_LOCAL, (uint8_t)localIdx);
+    } else {
+      emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+    }
   } else if (canAssign && match(compiler, TOKEN_SLASH_EQUAL)) {
-    emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    if (localIdx != -1) {
+      emitBytes(compiler, 2, OP_GET_LOCAL, (uint8_t)localIdx);
+    } else {
+      emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    }
+
     expression(compiler);
     emitBytes(compiler, 1, OP_DIVIDE);
-    emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+
+    if (localIdx != -1) {
+      emitBytes(compiler, 2, OP_SET_LOCAL, (uint8_t)localIdx);
+    } else {
+      emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+    }
   } else {
-    emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    if (localIdx != -1) {
+      emitBytes(compiler, 2, OP_GET_LOCAL, (uint8_t)localIdx);
+    } else {
+      emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+    }
   }
 }
 

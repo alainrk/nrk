@@ -367,6 +367,22 @@ static InterpretResult run(VM *vm) {
       }
       break;
     }
+      // It's not redundant to take from the stack and push it, but we only look
+      // at the top of it during operations.
+    case OP_GET_LOCAL: {
+      uint8_t slot = READ_BYTE();
+      push(vm, vm->stack[slot]);
+      break;
+    }
+      // It just set the variable, wherever it is in the stack, looking the top
+      // of stack. It doesn't pop the value from the stack, as assignment is an
+      // `expression` so it must produce a value, so it must stay on the stack
+      // for who needs to use this value.
+    case OP_SET_LOCAL: {
+      uint8_t slot = READ_BYTE();
+      vm->stack[slot] = peek(vm, 0);
+      break;
+    }
     }
   }
 
