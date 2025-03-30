@@ -6,6 +6,9 @@ SRC_DIR = src
 OBJ_DIR = obj
 BIN_DIR = bin
 
+# Debug flags - empty by default
+DEBUG_FLAGS =
+
 # Create directories if they don't exist
 $(shell mkdir -p $(OBJ_DIR) $(BIN_DIR))
 
@@ -16,9 +19,17 @@ OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 # Main executable
 MAIN = $(BIN_DIR)/nrk
 
-.PHONY: all clean
+.PHONY: all clean debug release
 
 all: $(MAIN)
+
+# Debug build with all debug flags enabled
+debug: DEBUG_FLAGS += -DNRK_DEBUG_ALL
+debug: CFLAGS += $(DEBUG_FLAGS)
+debug: $(MAIN)
+
+# Release build (no debug flags)
+release: $(MAIN)
 
 # Linking rule
 $(MAIN): $(OBJS)
@@ -50,5 +61,5 @@ test: $(MAIN)
 	$(MAIN) test/test_script.nrk
 
 # Debug with GDB
-debug: $(MAIN)
+gdb-debug: debug
 	gdb $(MAIN)
