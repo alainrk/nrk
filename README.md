@@ -17,6 +17,7 @@ The language is inspired by Bob Nystrom's ["Crafting Interpreters"](https://craf
   - [Variables](#variables)
   - [Expressions](#expressions)
   - [Statements](#statements)
+  - [Blocks and Scopes](#blocks-and-scopes)
 - [Implementation Details](#implementation-details)
   - [Architecture](#architecture)
   - [Project Structure](#project-structure)
@@ -36,6 +37,7 @@ The language is inspired by Bob Nystrom's ["Crafting Interpreters"](https://craf
 - **Operators**: Arithmetic, comparison, logical, bitwise, and postfix operations
 - **String Handling**: String literals, concatenation, interning, and template strings
 - **Memory Management**: Efficient memory allocation with garbage collection foundations
+- **Variable Scoping**: Support for both global and local variables with lexical scoping
 
 ## Getting Started
 
@@ -47,7 +49,14 @@ The language is inspired by Bob Nystrom's ["Crafting Interpreters"](https://craf
 ### Building
 
 ```sh
+# Standard build
 make all
+
+# Debug build with all debugging flags enabled
+make debug
+
+# Release build (no debug flags)
+make release
 ```
 
 ### Running
@@ -62,6 +71,16 @@ make all
 
 ```sh
 ./bin/nrk path/to/script.nrk
+```
+
+**Debugging**:
+
+```sh
+# Run with GDB
+make gdb-debug
+
+# Run tests
+make test
 ```
 
 ## Language Guide
@@ -192,6 +211,23 @@ print 2 + 2;         // 4
 print a + b;         // Prints the sum of variables a and b
 ```
 
+### Blocks and Scopes
+
+NRK supports lexical scoping with blocks:
+
+```go
+{
+  var x = 10;
+  print x;           // 10
+  {
+    var y = 20;
+    print x + y;     // 30
+  }
+  // y is not accessible here
+}
+// x is not accessible here
+```
+
 ## Implementation Details
 
 ### Architecture
@@ -207,11 +243,21 @@ NRK is implemented as a bytecode virtual machine with a stack-based architecture
 **Grammar**:
 
 ```
+program        → declaration* EOF ;
+
+declaration    → varDecl
+               | statement ;
+
+varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
+
 statement      → exprStmt
                | printStmt
                | block ;
 
 block          → "{" declaration* "}" ;
+
+exprStmt       → expression ";" ;
+printStmt      → "print" expression ";" ;
 ```
 
 **Variable declaration**:
@@ -241,21 +287,38 @@ NRK is currently in early development (v0.0.1) and implements:
 - Comparison operations
 - Boolean logic
 - Bitwise operations
-- Variables and assignment
+- Variables and assignment (global and local)
 - Print statements
-- Postfix operators
+- Postfix operators (++, --)
 - String operations and template strings
 - String interning with hash tables
 - Memory management foundations with garbage collection
+- Lexical scoping with blocks
 
 ### Debugging
 
-The interpreter includes debugging features that can be enabled by uncommenting the corresponding define statements in `common.h`:
+The interpreter includes powerful debugging features that can be enabled via the Makefile:
+
+```sh
+# Enable all debug flags
+make debug
+```
+
+Individual debugging options can also be controlled in `common.h`:
 
 - `DEBUG_PRINT_CODE`: Disassembles and prints bytecode after compilation
 - `DEBUG_TRACE_EXECUTION`: Traces VM execution step by step, showing stack state
 - `DEBUG_SCAN_EXECUTION`: Shows detailed scanning process information
 - `DEBUG_COMPILE_EXECUTION`: Provides detailed compilation process logs
+
+All debug flags can be simultaneously enabled by defining `NRK_DEBUG_ALL`.
+
+The new build system also supports:
+
+- Cleaner directory structure (src, obj, bin)
+- Better dependency tracking
+- GDB integration
+- Test running capabilities
 
 ## Roadmap
 
@@ -271,6 +334,7 @@ Future plans include:
 - String interning is implemented using a hash table for efficient string comparison
 - Extended constant pool via `OP_CONSTANT_LONG` allows for more than 256 constants
 - Memory management uses Flexible Array Members (FAM) for efficient string storage
+- Local variable handling uses direct stack slot access for performance
 - Planned improvements:
   - Extend table support to other immutable objects besides strings as keys
   - Optimize compiler pointer indirections in critical paths
