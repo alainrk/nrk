@@ -889,7 +889,6 @@ static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
     } else {
       emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
     }
-
   } else if (canAssign && match(compiler, TOKEN_PLUS_EQUAL)) {
 
     if (localIdx != -1) {
@@ -906,7 +905,6 @@ static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
     } else {
       emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
     }
-
   } else if (canAssign && match(compiler, TOKEN_MINUS_EQUAL)) {
     if (localIdx != -1) {
       emitBytes(compiler, 2, OP_GET_LOCAL, (uint8_t)localIdx);
@@ -922,7 +920,6 @@ static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
     } else {
       emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
     }
-
   } else if (canAssign && match(compiler, TOKEN_STAR_EQUAL)) {
     if (localIdx != -1) {
       emitBytes(compiler, 2, OP_GET_LOCAL, (uint8_t)localIdx);
@@ -972,7 +969,7 @@ static void postfix(Compiler *compiler, bool canAssign) {
   Chunk *currChunk = compiler->currentChunk;
 
   // At this point, the variable value is already on the stack
-  // Due to the GET_GLOBAL(_LONG) emitted by the variable prefix function
+  // Due to the GET_LOCAL/GLOBAL(_LONG) emitted by the variable prefix function
 
   // Check that we have at least compiled the variable operator.
   if (currChunk->count < 2) {
@@ -981,24 +978,30 @@ static void postfix(Compiler *compiler, bool canAssign) {
   }
 
   // Check if the previous op was a variable load
-  // 1. First try looking back 2 bytes (GET_GLOBAL case, 1 operand byte + 1
-  // index byte)
+  // 1. First try looking back 2 bytes (GET_GLOBAL/LOCAL case, 1 operand byte +
+  // 1 index byte)
   uint8_t lastOp = currChunk->code[currChunk->count - 2];
 
-  // 2. If not a normal GET_GLOBAL, try looking back 4 bytes (GET_GLOBAL_LONG, 1
-  // operand byte + 3 index bytes)
-  if (lastOp != OP_GET_GLOBAL) {
+  // 2. If not a normal GET_LOCAL/GLOBAL, try looking back 4 bytes
+  // (GET_GLOBAL_LONG, 1 operand byte + 3 index bytes)
+  if (lastOp != OP_GET_LOCAL && lastOp != OP_GET_GLOBAL) {
     lastOp = currChunk->code[currChunk->count - 4];
   }
 
-  if (lastOp != OP_GET_GLOBAL && lastOp != OP_GET_GLOBAL_LONG) {
+  if (lastOp != OP_GET_GLOBAL && lastOp != OP_GET_GLOBAL_LONG &&
+      lastOp != OP_GET_LOCAL) {
     error(compiler->parser, "Can only apply postfix operators to a variable");
     return;
   }
 
+  int localIdx = -1;
   ConstantIndex varIndex;
 
-  if (lastOp == OP_GET_GLOBAL) {
+  if (lastOp == OP_GET_LOCAL) {
+    // The local variable index must be the one right after the operand
+    // OP_GET_LOCAL.
+    localIdx = currChunk->code[currChunk->count - 1];
+  } else if (lastOp == OP_GET_GLOBAL) {
     // Short constant index case
     varIndex.bytes[0] = currChunk->code[currChunk->count - 1];
     varIndex.isLong = false;
@@ -1010,7 +1013,6 @@ static void postfix(Compiler *compiler, bool canAssign) {
     varIndex.isLong = true;
   }
 
-  // Duplicate the value on the stack
   emitBytes(compiler, 1, __OP_DUP);
 
   // Determine the operation based on the token type
@@ -1033,7 +1035,11 @@ static void postfix(Compiler *compiler, bool canAssign) {
   }
 
   // Store back to the variable
-  emitConstantIndex(compiler, varIndex, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+  if (localIdx != -1) {
+    emitBytes(compiler, 2, OP_SET_LOCAL, (uint8_t)localIdx);
+  } else {
+    emitConstantIndex(compiler, varIndex, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
+  }
 
   // Pop the stored value, leaving the original
   emitBytes(compiler, 1, OP_POP);
@@ -1085,10 +1091,6 @@ bool compile(Compiler *compiler, const char *source) {
   while (!match(compiler, TOKEN_EOF)) {
     declaration(compiler);
   }
-
-  // expression(compiler, chunk);
-  // consume(compiler, TOKEN_EOF, "Expect end of expression.");
-
   endCompiler(compiler);
 
 #ifdef DEBUG_COMPILE_EXECUTION
