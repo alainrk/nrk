@@ -71,6 +71,7 @@ typedef enum {
   TOKEN_THIS,
   TOKEN_TRUE,
   TOKEN_VAR,
+  TOKEN_CONST,
   TOKEN_WHILE,
   // Specials.
   TOKEN_ERROR,

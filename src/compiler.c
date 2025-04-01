@@ -88,6 +88,7 @@ ParseRule rules[] = {
     [TOKEN_THIS] = {NULL, NULL, NULL, PREC_NONE},
     [TOKEN_TRUE] = {literal, NULL, NULL, PREC_NONE},
     [TOKEN_VAR] = {NULL, NULL, NULL, PREC_NONE},
+    [TOKEN_CONST] = {NULL, NULL, NULL, PREC_NONE},
     [TOKEN_WHILE] = {NULL, NULL, NULL, PREC_NONE},
     [TOKEN_ERROR] = {NULL, NULL, NULL, PREC_NONE},
     [TOKEN_EOF] = {NULL, NULL, NULL, PREC_NONE},
@@ -685,11 +686,14 @@ static void defineVariable(Compiler *compiler, ConstantIndex variable) {
 
 // Variable declaration, parsing it and storing in constant's table (see
 // defineVariable() for the details.
-static void varDeclaration(Compiler *compiler) {
+static void varDeclaration(Compiler *compiler, bool isConstant) {
+  // TODO: Remove this
+  UNUSED(isConstant);
+
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
-  printf("%svarDeclaration()\n",
-         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent));
+  printf("%svarDeclaration(constant=%d)\n",
+         strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent), isConstant);
 #endif
 
   ConstantIndex global = parseVariable(compiler, "Expect variable name.");
@@ -732,6 +736,7 @@ static void synchronize(Compiler *compiler) {
     case TOKEN_CLASS:
     case TOKEN_FUN:
     case TOKEN_VAR:
+    case TOKEN_CONST:
     case TOKEN_FOR:
     case TOKEN_IF:
     case TOKEN_WHILE:
@@ -749,7 +754,9 @@ static void synchronize(Compiler *compiler) {
 
 static void declaration(Compiler *compiler) {
   if (match(compiler, TOKEN_VAR)) {
-    varDeclaration(compiler);
+    varDeclaration(compiler, false);
+  } else if (match(compiler, TOKEN_CONST)) {
+    varDeclaration(compiler, true);
   } else {
     statement(compiler);
   }
