@@ -880,89 +880,59 @@ static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
 #endif
 
   int localIdx = resolveLocal(compiler, name);
-  ConstantIndex cidx = identifierConstant(compiler, name);
 
-  // If we are on a "=", this is a setter, so we consume the expression, if
-  // possible.
-  //
-  // TODO: There is a lot of repetition here, it could be cleaned up creating a
-  // fake ConstantIndex and using OP_SET/GET_LOCAL_LONG as a fake instruction
-  // for the emitConstantIndex() arg.
+  ConstantIndex cidx;
+  OpCode shortCodeSet, shortCodeGet, longCodeSet, longCodeGet;
+
+  // Global variable case.
+  if (localIdx == -1) {
+    cidx = identifierConstant(compiler, name);
+
+    shortCodeGet = OP_GET_GLOBAL;
+    longCodeGet = OP_GET_GLOBAL_LONG;
+    shortCodeSet = OP_SET_GLOBAL;
+    longCodeSet = OP_SET_GLOBAL_LONG;
+  } else {
+    // Local variable case.
+    //
+    // Trick to avoid having a lot of branches and duplication in the following
+    // code.
+    cidx.bytes[0] = localIdx;
+    cidx.isLong = false;
+
+    shortCodeGet = OP_GET_LOCAL;
+    longCodeGet = OP_GET_LOCAL_LONG;
+    shortCodeSet = OP_SET_LOCAL;
+    longCodeSet = OP_SET_LOCAL_LONG;
+  }
+
+  // If we are on an assignment token, this is a setter, so we consume the
+  // expression, if possible.
   if (canAssign && match(compiler, TOKEN_EQUAL)) {
     expression(compiler);
-
-    if (localIdx != -1) {
-      emitBytes(compiler, 2, OP_SET_LOCAL, (uint8_t)localIdx);
-    } else {
-      emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
-    }
+    emitConstantIndex(compiler, cidx, shortCodeSet, longCodeSet);
   } else if (canAssign && match(compiler, TOKEN_PLUS_EQUAL)) {
-
-    if (localIdx != -1) {
-      emitBytes(compiler, 2, OP_GET_LOCAL, (uint8_t)localIdx);
-    } else {
-      emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
-    }
-
+    emitConstantIndex(compiler, cidx, shortCodeGet, longCodeGet);
     expression(compiler);
     emitBytes(compiler, 1, OP_ADD);
-
-    if (localIdx != -1) {
-      emitBytes(compiler, 2, OP_SET_LOCAL, (uint8_t)localIdx);
-    } else {
-      emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
-    }
+    emitConstantIndex(compiler, cidx, shortCodeSet, longCodeSet);
   } else if (canAssign && match(compiler, TOKEN_MINUS_EQUAL)) {
-    if (localIdx != -1) {
-      emitBytes(compiler, 2, OP_GET_LOCAL, (uint8_t)localIdx);
-    } else {
-      emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
-    }
-
+    emitConstantIndex(compiler, cidx, shortCodeGet, longCodeGet);
     expression(compiler);
     emitBytes(compiler, 1, OP_SUBTRACT);
-
-    if (localIdx != -1) {
-      emitBytes(compiler, 2, OP_SET_LOCAL, (uint8_t)localIdx);
-    } else {
-      emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
-    }
+    emitConstantIndex(compiler, cidx, shortCodeSet, longCodeSet);
   } else if (canAssign && match(compiler, TOKEN_STAR_EQUAL)) {
-    if (localIdx != -1) {
-      emitBytes(compiler, 2, OP_GET_LOCAL, (uint8_t)localIdx);
-    } else {
-      emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
-    }
-
+    emitConstantIndex(compiler, cidx, shortCodeGet, longCodeGet);
     expression(compiler);
     emitBytes(compiler, 1, OP_MULTIPLY);
-
-    if (localIdx != -1) {
-      emitBytes(compiler, 2, OP_SET_LOCAL, (uint8_t)localIdx);
-    } else {
-      emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
-    }
+    emitConstantIndex(compiler, cidx, shortCodeSet, longCodeSet);
   } else if (canAssign && match(compiler, TOKEN_SLASH_EQUAL)) {
-    if (localIdx != -1) {
-      emitBytes(compiler, 2, OP_GET_LOCAL, (uint8_t)localIdx);
-    } else {
-      emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
-    }
-
+    emitConstantIndex(compiler, cidx, shortCodeGet, longCodeGet);
     expression(compiler);
     emitBytes(compiler, 1, OP_DIVIDE);
-
-    if (localIdx != -1) {
-      emitBytes(compiler, 2, OP_SET_LOCAL, (uint8_t)localIdx);
-    } else {
-      emitConstantIndex(compiler, cidx, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
-    }
+    emitConstantIndex(compiler, cidx, shortCodeSet, longCodeSet);
   } else {
-    if (localIdx != -1) {
-      emitBytes(compiler, 2, OP_GET_LOCAL, (uint8_t)localIdx);
-    } else {
-      emitConstantIndex(compiler, cidx, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
-    }
+    emitConstantIndex(compiler, cidx, shortCodeGet, longCodeGet);
   }
 }
 

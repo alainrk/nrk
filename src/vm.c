@@ -369,6 +369,11 @@ static InterpretResult run(VM *vm) {
     }
       // It's not redundant to take from the stack and push it, but we only look
       // at the top of it during operations.
+    case OP_SET_LOCAL_LONG:
+    case OP_GET_LOCAL_LONG: {
+      runtimeError(vm, "OP_GET_LOCAL_LONG not implemented yet.");
+      return INTERPRET_RUNTIME_ERROR;
+    }
     case OP_GET_LOCAL: {
       uint8_t slot = READ_BYTE();
       push(vm, vm->stack[slot]);

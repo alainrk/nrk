@@ -43,6 +43,8 @@ typedef enum {
   OP_POP,
   OP_GET_LOCAL,
   OP_SET_LOCAL,
+  OP_SET_LOCAL_LONG, // NOTE: Not used at the moment
+  OP_GET_LOCAL_LONG, // NOTE: Not used at the moment
   OP_GET_GLOBAL,
   OP_GET_GLOBAL_LONG,
   OP_SET_GLOBAL,
