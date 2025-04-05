@@ -402,7 +402,7 @@ bool identifiersEqual(Token *a, Token *b) {
 static int resolveLocal(Compiler *compiler, Token *name) {
   // Loop backward passing all the scope bottom up to resolve the first matching
   // one.
-  for (int i = compiler->localCount; i >= 0; i--) {
+  for (int i = compiler->localCount - 1; i >= 0; i--) {
     Local *local = &compiler->locals[i];
     if (identifiersEqual(name, &local->name)) {
       // When we resolve to a local variable we check the scope depth to see if
