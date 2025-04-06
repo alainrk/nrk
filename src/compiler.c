@@ -418,7 +418,7 @@ static int resolveLocal(Compiler *compiler, Token *name) {
 }
 
 // Records the existence of temporary local variable in the compiler.
-static void addLocal(Compiler *compiler, Token name) {
+static void addLocal(Compiler *compiler, Token name, bool isConstant) {
   if (compiler->localCount >= UINT8_COUNT) {
     error(compiler->parser, "Too many local variables in function.");
     return;
@@ -429,11 +429,12 @@ static void addLocal(Compiler *compiler, Token name) {
   // We are initializing the variable, and we need to prevent its usage in the
   // expression, see defineVariable() comment in the if statement for details.
   local->depth = -1;
+  local->isConst = isConstant;
 }
 
 // Declare: when a variable is added to the scope (define is when it's ready to
 // use).
-static void declareVariable(Compiler *compiler) {
+static void declareVariable(Compiler *compiler, bool isConstant) {
   // Global variable, just return as it's late bound and present in global
   // table.
   if (compiler->scopeDepth == 0)
@@ -463,10 +464,11 @@ static void declareVariable(Compiler *compiler) {
     }
   }
 
-  addLocal(compiler, *name);
+  addLocal(compiler, *name, isConstant);
 }
 
-ConstantIndex parseVariable(Compiler *compiler, const char *message) {
+ConstantIndex parseVariable(Compiler *compiler, const char *message,
+                            bool isConstant) {
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
   printf("%sparseVariable\n",
@@ -475,7 +477,7 @@ ConstantIndex parseVariable(Compiler *compiler, const char *message) {
 #endif
 
   consume(compiler, TOKEN_IDENTIFIER, message);
-  declareVariable(compiler);
+  declareVariable(compiler, isConstant);
 
   // If it's a local variable we don't really care as it will remain on the
   // stack, so the index won't be used to lookup in global table.
@@ -696,7 +698,8 @@ static void varDeclaration(Compiler *compiler, bool isConstant) {
          strfromnchars(DEBUG_COMPILE_INDENT_CHAR, debugIndent), isConstant);
 #endif
 
-  ConstantIndex global = parseVariable(compiler, "Expect variable name.");
+  ConstantIndex global =
+      parseVariable(compiler, "Expect variable name.", isConstant);
 
   if (match(compiler, TOKEN_EQUAL)) {
     // Get the variable value.
@@ -879,10 +882,19 @@ static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
   debugIndent--;
 #endif
 
+  // If it's a global variable will store it's index in the chunk's constant
+  // identifiers.
+  ConstantIndex cidx;
+
+  // If it a local variable, get the index of the position in the stack instead
+  // (-1 otherwise -> global).
   int localIdx = resolveLocal(compiler, name);
 
-  ConstantIndex cidx;
   OpCode shortCodeSet, shortCodeGet, longCodeSet, longCodeGet;
+
+  // Check if it's a constant local variable being reassigned.
+  bool constReassignment =
+      canAssign && localIdx != -1 && compiler->locals[localIdx].isConst;
 
   // Global variable case.
   if (localIdx == -1) {
@@ -892,11 +904,10 @@ static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
     longCodeGet = OP_GET_GLOBAL_LONG;
     shortCodeSet = OP_SET_GLOBAL;
     longCodeSet = OP_SET_GLOBAL_LONG;
-  } else {
-    // Local variable case.
-    //
-    // Trick to avoid having a lot of branches and duplication in the following
-    // code.
+  } else
+  // Local variable case.
+  {
+    // Trick to avoid having a lot branches and duplication in the code.
     cidx.bytes[0] = localIdx;
     cidx.isLong = false;
 
@@ -906,34 +917,51 @@ static void namedVariable(Compiler *compiler, Token *name, bool canAssign) {
     longCodeSet = OP_SET_LOCAL_LONG;
   }
 
-  // If we are on an assignment token, this is a setter, so we consume the
-  // expression, if possible.
+  // If we are on an assignment token, this is a setter, so we consume first.
   if (canAssign && match(compiler, TOKEN_EQUAL)) {
+    if (constReassignment)
+      goto reassignmentError;
     expression(compiler);
     emitConstantIndex(compiler, cidx, shortCodeSet, longCodeSet);
   } else if (canAssign && match(compiler, TOKEN_PLUS_EQUAL)) {
+    if (constReassignment)
+      goto reassignmentError;
     emitConstantIndex(compiler, cidx, shortCodeGet, longCodeGet);
     expression(compiler);
     emitBytes(compiler, 1, OP_ADD);
     emitConstantIndex(compiler, cidx, shortCodeSet, longCodeSet);
   } else if (canAssign && match(compiler, TOKEN_MINUS_EQUAL)) {
+    if (constReassignment)
+      goto reassignmentError;
     emitConstantIndex(compiler, cidx, shortCodeGet, longCodeGet);
     expression(compiler);
     emitBytes(compiler, 1, OP_SUBTRACT);
     emitConstantIndex(compiler, cidx, shortCodeSet, longCodeSet);
   } else if (canAssign && match(compiler, TOKEN_STAR_EQUAL)) {
+    if (constReassignment)
+      goto reassignmentError;
     emitConstantIndex(compiler, cidx, shortCodeGet, longCodeGet);
     expression(compiler);
     emitBytes(compiler, 1, OP_MULTIPLY);
     emitConstantIndex(compiler, cidx, shortCodeSet, longCodeSet);
   } else if (canAssign && match(compiler, TOKEN_SLASH_EQUAL)) {
+    if (constReassignment)
+      goto reassignmentError;
     emitConstantIndex(compiler, cidx, shortCodeGet, longCodeGet);
     expression(compiler);
     emitBytes(compiler, 1, OP_DIVIDE);
     emitConstantIndex(compiler, cidx, shortCodeSet, longCodeSet);
-  } else {
+  } else
+  // Otherwise we are on a getter, so we just emit bytecode for that.
+  {
     emitConstantIndex(compiler, cidx, shortCodeGet, longCodeGet);
   }
+
+  return;
+
+reassignmentError:
+  error(compiler->parser, "Cannot reassign to constant variable.");
+  return;
 }
 
 // Variable read access (e.g. to read its value in an expression).

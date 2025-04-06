@@ -44,6 +44,7 @@ typedef enum {
 typedef struct {
   Token name;
   int depth;
+  bool isConst;
 } Local;
 
 typedef struct {
