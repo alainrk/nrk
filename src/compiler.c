@@ -650,7 +650,7 @@ static void block(Compiler *compiler) {
 // Define: when a variable is available and ready to use, after it's been
 // declared.
 //
-// Defining a variable, means putting its name into a ObjString, but storing the
+// Defining a variable means putting its name into a ObjString, but storing the
 // index in the VM operation with its index in the Chunk's constants table, as
 // otherwise would be too expensive.
 static void defineVariable(Compiler *compiler, ConstantIndex variable) {
@@ -689,9 +689,6 @@ static void defineVariable(Compiler *compiler, ConstantIndex variable) {
 // Variable declaration, parsing it and storing in constant's table (see
 // defineVariable() for the details.
 static void varDeclaration(Compiler *compiler, bool isConstant) {
-  // TODO: Remove this
-  UNUSED(isConstant);
-
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
   printf("%svarDeclaration(constant=%d)\n",
@@ -704,6 +701,9 @@ static void varDeclaration(Compiler *compiler, bool isConstant) {
   if (match(compiler, TOKEN_EQUAL)) {
     // Get the variable value.
     expression(compiler);
+  } else if (isConstant) {
+    error(compiler->parser, "Constants must have an initial value.");
+    return;
   } else {
     // Otherwise empty initialization, set nil.
     // Syntactic sugar for `var a = nil`;
