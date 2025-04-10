@@ -3,6 +3,7 @@
 #include "common.h"
 #include "object.h"
 #include "scanner.h"
+#include "table.h"
 #include "value.h"
 #include <stdarg.h>
 #include <stdint.h>
@@ -653,7 +654,8 @@ static void block(Compiler *compiler) {
 // Defining a variable means putting its name into a ObjString, but storing the
 // index in the VM operation with its index in the Chunk's constants table, as
 // otherwise would be too expensive.
-static void defineVariable(Compiler *compiler, ConstantIndex variable) {
+static void defineVariable(Compiler *compiler, ConstantIndex variable,
+                           bool isConstant) {
 #ifdef DEBUG_COMPILE_EXECUTION
   debugIndent++;
   printf("%sdefineVariable()\n",
@@ -684,6 +686,19 @@ static void defineVariable(Compiler *compiler, ConstantIndex variable) {
 
   emitConstantIndex(compiler, variable, OP_DEFINE_GLOBAL,
                     OP_DEFINE_GLOBAL_LONG);
+
+  // If it's a constant, we should also add it there for runtime check.
+  // TODO: Is there maybe a better/more efficient way?
+  if (isConstant) {
+    Chunk *chunk = compiler->currentChunk;
+    int index = variable.isLong
+                    ? (variable.bytes[0] << 16) | (variable.bytes[1] << 8) |
+                          variable.bytes[2]
+                    : variable.bytes[0];
+    ObjString *name = AS_STRING(chunk->constants.values[index]);
+    // Just store a dummy nil value to keep it.
+    tableSet(&compiler->memoryManager->constants, name, NIL_VAL);
+  }
 }
 
 // Variable declaration, parsing it and storing in constant's table (see
@@ -712,7 +727,7 @@ static void varDeclaration(Compiler *compiler, bool isConstant) {
 
   consume(compiler, TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
 
-  defineVariable(compiler, global);
+  defineVariable(compiler, global, isConstant);
 }
 
 static void expressionStatement(Compiler *compiler) {

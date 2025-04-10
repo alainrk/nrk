@@ -26,6 +26,9 @@ typedef struct {
 
   // Global variables
   Table globals;
+
+  // Global constants
+  Table constants;
 } MemoryManager;
 
 MemoryManager *initMemoryManager();

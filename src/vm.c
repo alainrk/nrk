@@ -358,6 +358,12 @@ static InterpretResult run(VM *vm) {
         name = READ_STRING();
       }
 
+      Value isConstVal;
+      if (tableGet(&vm->memoryManager->constants, name, &isConstVal)) {
+        runtimeError(vm, "Cannot assign to constant variable '%s'", name->str);
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
       // If it's a new entry, it means the variable doesn't exist, clean up and
       // return error.
       if (tableSet(&vm->memoryManager->globals, name, peek(vm, 0))) {
