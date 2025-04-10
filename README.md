@@ -14,7 +14,7 @@ The language is inspired by Bob Nystrom's ["Crafting Interpreters"](https://craf
   - [Basic Syntax](#basic-syntax)
   - [Data Types](#data-types)
   - [Operators](#operators)
-  - [Variables](#variables)
+  - [Variables and Constants](#variables-and-constants)
   - [Expressions](#expressions)
   - [Statements](#statements)
   - [Blocks and Scopes](#blocks-and-scopes)
@@ -38,6 +38,7 @@ The language is inspired by Bob Nystrom's ["Crafting Interpreters"](https://craf
 - **String Handling**: String literals, concatenation, interning, and template strings
 - **Memory Management**: Efficient memory allocation with garbage collection foundations
 - **Variable Scoping**: Support for both global and local variables with lexical scoping
+- **Constants**: Support for immutable variables with compile-time and runtime validation
 
 ## Getting Started
 
@@ -45,6 +46,7 @@ The language is inspired by Bob Nystrom's ["Crafting Interpreters"](https://craf
 
 - C compiler (clang recommended)
 - Make
+- readline library
 
 ### Building
 
@@ -165,7 +167,9 @@ a--           // Decrement: a becomes 5
 "Hello, " + "world!"  // Concatenation: "Hello, world!"
 ```
 
-### Variables
+### Variables and Constants
+
+#### Variables
 
 Variables are declared using the `var` keyword:
 
@@ -183,7 +187,26 @@ counter = 10;
 counter++;           // Now 11
 ```
 
-Compound assignment is also supported:
+#### Constants
+
+Constants are declared using the `const` keyword and must be initialized:
+
+```go
+const PI = 3.14159;
+const APP_NAME = "NRK Calculator";
+const DEBUG_MODE = true;
+```
+
+Attempting to reassign a constant will result in a runtime error:
+
+```go
+const MAX_VALUE = 100;
+MAX_VALUE = 200;     // Error: Cannot reassign to constant variable
+```
+
+#### Compound Assignment
+
+Compound assignment operators are supported for variables:
 
 ```go
 var x = 5;
@@ -218,14 +241,16 @@ NRK supports lexical scoping with blocks:
 ```go
 {
   var x = 10;
+  const Y = 20;
   print x;           // 10
+  print Y;           // 20
   {
-    var y = 20;
-    print x + y;     // 30
+    var z = 30;
+    print x + Y + z; // 60
   }
-  // y is not accessible here
+  // z is not accessible here
 }
-// x is not accessible here
+// x and Y are not accessible here
 ```
 
 ## Implementation Details
@@ -246,9 +271,11 @@ NRK is implemented as a bytecode virtual machine with a stack-based architecture
 program        → declaration* EOF ;
 
 declaration    → varDecl
+               | constDecl
                | statement ;
 
 varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
+constDecl      → "const" IDENTIFIER "=" expression ";" ;
 
 statement      → exprStmt
                | printStmt
@@ -260,10 +287,11 @@ exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
 ```
 
-**Variable declaration**:
+**Variable/Constant declaration**:
 
 ```
 varDeclaration() -> parseVariable() --Constant--> Compile Initializer -> defineVariable()
+constDeclaration() -> parseVariable(isConstant=true) --Constant--> Compile Initializer -> defineVariable()
 ```
 
 ### Project Structure
@@ -288,6 +316,7 @@ NRK is currently in early development (v0.0.1) and implements:
 - Boolean logic
 - Bitwise operations
 - Variables and assignment (global and local)
+- Constants with reassignment protection
 - Print statements
 - Postfix operators (++, --)
 - String operations and template strings
@@ -313,7 +342,7 @@ Individual debugging options can also be controlled in `common.h`:
 
 All debug flags can be simultaneously enabled by defining `NRK_DEBUG_ALL`.
 
-The new build system also supports:
+The build system supports:
 
 - Cleaner directory structure (src, obj, bin)
 - Better dependency tracking
@@ -335,6 +364,7 @@ Future plans include:
 - Extended constant pool via `OP_CONSTANT_LONG` allows for more than 256 constants
 - Memory management uses Flexible Array Members (FAM) for efficient string storage
 - Local variable handling uses direct stack slot access for performance
+- Constants are verified both at compile-time and runtime to prevent reassignment
 - Planned improvements:
   - Extend table support to other immutable objects besides strings as keys
   - Optimize compiler pointer indirections in critical paths
