@@ -116,7 +116,7 @@ static InterpretResult run(VM *vm) {
 
 #define READ_BYTE() (*vm->ip++)
 
-#define READ_SHORT() (*vm->ip += 2, (u_int16_t)((vm->ip[-2] << 8) | vm->ip[-1]))
+#define READ_SHORT() (vm->ip += 2, (u_int16_t)((vm->ip[-2] << 8) | vm->ip[-1]))
 
 #define MOVE_BYTES(n) (vm->ip += (n))
 

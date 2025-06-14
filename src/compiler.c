@@ -759,16 +759,16 @@ static void ifStatement(Compiler *compiler) {
 
   // Backpatching: emit the jump instruction first with a placeholder offset
   // operand. We keep track of where that half-finished instruction is. Next, we
-  // compile the then body. Once that’s done, we know how far to jump. So we go
+  // compile the then body. Once that's done, we know how far to jump. So we go
   // back and replace that placeholder offset with the real one now that we can
   // calculate it.
   int thenJump = emitJump(compiler, OP_JUMP_IF_FALSE);
-  emitJump(compiler, OP_POP);
+  emitBytes(compiler, 1, OP_POP);
   statement(compiler);
 
   int elseJump = emitJump(compiler, OP_JUMP);
   patchJump(compiler, thenJump);
-  emitJump(compiler, OP_POP);
+  emitBytes(compiler, 1, OP_POP);
 
   if (match(compiler, TOKEN_ELSE))
     statement(compiler);
