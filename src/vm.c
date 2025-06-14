@@ -1,6 +1,5 @@
 #include "vm.h"
 #include "chunk.h"
-#include "common.h"
 #include "compiler.h"
 #include "debug.h"
 #include "memory.h"
@@ -116,6 +115,8 @@ static void concatenate(VM *vm) {
 static InterpretResult run(VM *vm) {
 
 #define READ_BYTE() (*vm->ip++)
+
+#define READ_SHORT() (*vm->ip += 2, (u_int16_t)((vm->ip[-2] << 8) | vm->ip[-1]))
 
 #define MOVE_BYTES(n) (vm->ip += (n))
 
@@ -394,10 +395,22 @@ static InterpretResult run(VM *vm) {
       vm->stack[slot] = peek(vm, 0);
       break;
     }
+    case OP_JUMP: {
+      u_int16_t offset = READ_SHORT();
+      vm->ip += offset;
+      break;
+    }
+    case OP_JUMP_IF_FALSE: {
+      u_int16_t offset = READ_SHORT();
+      if (isFalsey(peek(vm, 0)))
+        vm->ip += offset;
+      break;
+    }
     }
   }
 
 #undef READ_BYTE
+#undef READ_SHORT
 #undef MOVE_BYTES
 #undef READ_CONSTANT
 #undef READ_CONSTANT_LONG

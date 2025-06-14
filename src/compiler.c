@@ -253,6 +253,22 @@ static void emitBytes(Compiler *compiler, int count, ...) {
 #endif
 }
 
+static int emitJump(Compiler *compiler, u_int8_t instruction) {
+  emitBytes(compiler, 1, instruction);
+  emitBytes(compiler, 2, 0xff, 0xff);
+  return compiler->currentChunk->count - 2;
+}
+
+static void patchJump(Compiler *compiler, int offset) {
+  // -2 to adjust for the bytecode of the jump offset.
+  int jump = compiler->currentChunk->count - offset - 2;
+  if (jump > UINT16_MAX) {
+    error(compiler->parser, "Too much code to jump over.");
+  }
+  compiler->currentChunk->code[offset] = (jump >> 8) & 0xff;
+  compiler->currentChunk->code[offset + 1] = jump & 0xff;
+}
+
 // Emit the correct number of bytes depending on how many there are for the
 // given constant index.
 static void emitConstantIndex(Compiler *compiler, ConstantIndex index,
@@ -736,6 +752,30 @@ static void expressionStatement(Compiler *compiler) {
   emitBytes(compiler, 1, OP_POP);
 }
 
+static void ifStatement(Compiler *compiler) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+  expression(compiler);
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' at the end of condition.");
+
+  // Backpatching: emit the jump instruction first with a placeholder offset
+  // operand. We keep track of where that half-finished instruction is. Next, we
+  // compile the then body. Once that’s done, we know how far to jump. So we go
+  // back and replace that placeholder offset with the real one now that we can
+  // calculate it.
+  int thenJump = emitJump(compiler, OP_JUMP_IF_FALSE);
+  emitJump(compiler, OP_POP);
+  statement(compiler);
+
+  int elseJump = emitJump(compiler, OP_JUMP);
+  patchJump(compiler, thenJump);
+  emitJump(compiler, OP_POP);
+
+  if (match(compiler, TOKEN_ELSE))
+    statement(compiler);
+
+  patchJump(compiler, elseJump);
+}
+
 static void printStatement(Compiler *compiler) {
   expression(compiler);
   consume(compiler, TOKEN_SEMICOLON, "Expect ';' after value.");
@@ -787,6 +827,8 @@ static void declaration(Compiler *compiler) {
 static void statement(Compiler *compiler) {
   if (match(compiler, TOKEN_PRINT)) {
     printStatement(compiler);
+  } else if (match(compiler, TOKEN_IF)) {
+    ifStatement(compiler);
   } else if (match(compiler, TOKEN_LEFT_BRACE)) {
     beginScope(compiler);
     block(compiler);
